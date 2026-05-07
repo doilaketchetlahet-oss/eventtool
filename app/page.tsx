@@ -1,6 +1,8 @@
 import HomePageClient from "@/components/home-page-client";
 import { getApps } from "@/lib/get-apps";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const { apps, source } = await getApps();
 

@@ -1,5 +1,6 @@
 "use client";
 import type { AppRecord } from "@/types/app";
+import { supabase } from "@/lib/supabase";
 import { FormEvent, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -148,14 +149,14 @@ export default function HomePageClient({ apps, dataSource }: HomePageClientProps
   const [selectedApp, setSelectedApp] = useState<FeaturedApp | null>(null);
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [supabaseRecordCount, setSupabaseRecordCount] = useState(apps.length);
+  const [liveApps, setLiveApps] = useState<FeaturedApp[]>(() =>
+    apps.length > 0 ? apps.map(mapSupabaseApp) : featuredApps
+  );
 
-  const displayApps = useMemo(() => {
-    if (apps.length > 0) {
-      return apps.map(mapSupabaseApp);
-    }
-
-    return featuredApps;
-  }, [apps]);
+  const displayApps = liveApps;
 
   const categoryOptions = useMemo(() => {
     const names = displayApps.flatMap((app) => [app.category, ...app.tags]);
@@ -185,6 +186,8 @@ export default function HomePageClient({ apps, dataSource }: HomePageClientProps
 
     return matchesSearch && matchesCategory;
   });
+  const recordCount = supabaseRecordCount;
+  const shownCount = filteredApps.length;
 
   function scrollToSection(id: string) {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -194,9 +197,43 @@ export default function HomePageClient({ apps, dataSource }: HomePageClientProps
     scrollToSection("featured");
   }
 
-  function handleSubmitApp(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmitApp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setIsSubmitted(true);
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const title = String(formData.get("appName") ?? "").trim();
+    const description = String(formData.get("description") ?? "").trim();
+
+    try {
+      if (!supabase) {
+        throw new Error("Supabase chưa được cấu hình.");
+      }
+
+      const { data, error } = await supabase
+        .from("apps")
+        .insert([{ title, description }])
+        .select("*")
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        setLiveApps((current) => [mapSupabaseApp(data as AppRecord, 0), ...current]);
+        setSupabaseRecordCount((count) => count + 1);
+      }
+
+      form.reset();
+      setIsSubmitted(true);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Không thể lưu ứng dụng vào Supabase.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -274,6 +311,15 @@ export default function HomePageClient({ apps, dataSource }: HomePageClientProps
                 />
                 {dataSource === "supabase" ? "Nguồn dữ liệu: Supabase" : "Nguồn dữ liệu: Demo cục bộ"}
               </motion.div>
+
+              <div className="mb-8 flex flex-wrap gap-2 text-xs font-medium text-white/55">
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 backdrop-blur-xl">
+                  Số row Supabase: {recordCount}
+                </span>
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 backdrop-blur-xl">
+                  Đang hiển thị: {shownCount} ứng dụng
+                </span>
+              </div>
 
               <motion.h1
                 initial={{ opacity: 0, y: 18 }}
@@ -654,6 +700,7 @@ export default function HomePageClient({ apps, dataSource }: HomePageClientProps
             onClick={() => {
               setIsSubmitOpen(false);
               setIsSubmitted(false);
+              setSubmitError(null);
             }}
           />
           <motion.form
@@ -669,6 +716,7 @@ export default function HomePageClient({ apps, dataSource }: HomePageClientProps
               onClick={() => {
                 setIsSubmitOpen(false);
                 setIsSubmitted(false);
+                setSubmitError(null);
               }}
               className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/50 transition-colors hover:text-white"
             >
@@ -680,15 +728,16 @@ export default function HomePageClient({ apps, dataSource }: HomePageClientProps
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-emerald-300/20 bg-emerald-300/10 text-emerald-200 shadow-[0_0_40px_rgba(110,231,183,0.12)]">
                   <CheckCircle2 className="h-6 w-6" />
                 </div>
-                <h3 className="mt-5 text-2xl font-semibold tracking-[-0.04em] text-white">Đã nhận thông tin ứng dụng</h3>
+                <h3 className="mt-5 text-2xl font-semibold tracking-[-0.04em] text-white">Đã lưu vào Supabase</h3>
                 <p className="mx-auto mt-3 max-w-sm text-sm leading-7 text-white/55">
-                  Đây là form demo phía giao diện. Khi có backend, dữ liệu này có thể được lưu vào database hoặc gửi về email quản trị.
+                  Ứng dụng đã được ghi vào bảng `apps` và sẽ xuất hiện trên giao diện sau khi đồng bộ dữ liệu.
                 </p>
                 <Button
                   className="mt-6"
                   onClick={() => {
                     setIsSubmitOpen(false);
                     setIsSubmitted(false);
+                    setSubmitError(null);
                   }}
                 >
                   Hoàn tất
@@ -699,8 +748,14 @@ export default function HomePageClient({ apps, dataSource }: HomePageClientProps
                 <p className="text-xs uppercase tracking-[0.24em] text-cyan-100/50">Gửi ứng dụng</p>
                 <h3 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-white">Đưa sản phẩm của bạn lên KhoApp.</h3>
                 <p className="mt-3 text-sm leading-7 text-white/55">
-                  Điền thông tin cơ bản để mô phỏng luồng submit app. Form này hiện là demo trên frontend.
+                  Điền thông tin cơ bản để lưu ứng dụng thật vào Supabase. Hiện tại hệ thống sẽ ghi trực tiếp vào bảng `apps`.
                 </p>
+
+                {submitError ? (
+                  <div className="mt-5 rounded-2xl border border-rose-300/15 bg-rose-300/10 px-4 py-3 text-sm text-rose-100">
+                    {submitError}
+                  </div>
+                ) : null}
 
                 <div className="mt-6 space-y-4">
                   <Input name="appName" required placeholder="Tên ứng dụng" />
@@ -722,12 +777,13 @@ export default function HomePageClient({ apps, dataSource }: HomePageClientProps
                     onClick={() => {
                       setIsSubmitOpen(false);
                       setIsSubmitted(false);
+                      setSubmitError(null);
                     }}
                   >
                     Hủy
                   </Button>
-                  <Button type="submit">
-                    Gửi demo
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? "Đang lưu..." : "Gửi và lưu"}
                     <Send className="h-4 w-4" />
                   </Button>
                 </div>
