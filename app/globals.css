@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-slate-950 text-white antialiased;
+  background-image:
+    radial-gradient(circle at 48% -18%, rgba(226, 232, 240, 0.18), transparent 24rem),
+    radial-gradient(circle at 14% 8%, rgba(124, 58, 237, 0.22), transparent 27rem),
+    radial-gradient(circle at 88% 12%, rgba(34, 211, 238, 0.16), transparent 26rem),
+    radial-gradient(circle at 50% 95%, rgba(79, 70, 229, 0.16), transparent 32rem),
+    linear-gradient(180deg, #020308 0%, #060713 42%, #020617 100%);
+  background-attachment: fixed;
+}
+
+* {
+  @apply border-white/10;
+}
+
+::selection {
+  background: rgba(168, 85, 247, 0.35);
+  color: white;
+}
+
+.glass {
+  @apply border border-white/10 bg-white/[0.055] backdrop-blur-xl;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 24px 100px rgba(2, 6, 23, 0.55);
+}
+
+.grid-glow {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(ellipse at top, black 36%, transparent 78%);
+}
+
+.cinematic-vignette {
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(2, 3, 8, 0.42) 78%, rgba(2, 3, 8, 0.78) 100%);
+}
+
+.aurora-line {
+  background: linear-gradient(90deg, transparent, rgba(125, 211, 252, 0.7), rgba(216, 180, 254, 0.8), transparent);
+  filter: blur(0.5px);
+}
+
+.noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.34'/%3E%3C/svg%3E");
+}
