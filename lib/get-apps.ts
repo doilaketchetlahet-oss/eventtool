@@ -1,20 +1,22 @@
 import { supabase } from "@/lib/supabase";
 import type { AppRecord } from "@/types/app";
 
-export async function getApps(): Promise<AppRecord[]> {
+export type DataSource = "supabase" | "demo";
+
+export async function getApps(): Promise<{ apps: AppRecord[]; source: DataSource }> {
   if (!supabase) {
-    return [];
+    return { apps: [], source: "demo" };
   }
 
   try {
     const { data, error } = await supabase.from("apps").select("*");
 
     if (error) {
-      return [];
+      return { apps: [], source: "demo" };
     }
 
-    return (data ?? []) as AppRecord[];
+    return { apps: (data ?? []) as AppRecord[], source: "supabase" };
   } catch {
-    return [];
+    return { apps: [], source: "demo" };
   }
 }

@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import type { DataSource } from "@/lib/get-apps";
 
 const featuredApps = [
   {
@@ -110,6 +111,7 @@ type FeaturedApp = (typeof featuredApps)[number];
 
 type HomePageClientProps = {
   apps: AppRecord[];
+  dataSource: DataSource;
 };
 
 function mapSupabaseApp(app: AppRecord, index: number): FeaturedApp {
@@ -140,7 +142,7 @@ function mapSupabaseApp(app: AppRecord, index: number): FeaturedApp {
   };
 }
 
-export default function HomePageClient({ apps }: HomePageClientProps) {
+export default function HomePageClient({ apps, dataSource }: HomePageClientProps) {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("Tất cả");
   const [selectedApp, setSelectedApp] = useState<FeaturedApp | null>(null);
@@ -255,6 +257,22 @@ export default function HomePageClient({ apps }: HomePageClientProps) {
               >
                 <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(103,232,249,0.9)]" />
                 Hệ thống khám phá ứng dụng mang phong cách điện ảnh
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.04 }}
+                className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-medium text-white/60 backdrop-blur-xl"
+              >
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    dataSource === "supabase"
+                      ? "bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,0.9)]"
+                      : "bg-amber-300 shadow-[0_0_18px_rgba(253,224,71,0.9)]"
+                  }`}
+                />
+                {dataSource === "supabase" ? "Nguồn dữ liệu: Supabase" : "Nguồn dữ liệu: Demo cục bộ"}
               </motion.div>
 
               <motion.h1
