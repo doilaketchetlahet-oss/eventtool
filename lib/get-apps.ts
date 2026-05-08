@@ -3,13 +3,23 @@ import type { AppRecord } from "@/types/app";
 
 export type DataSource = "supabase" | "demo";
 
-export async function getApps(): Promise<{ apps: AppRecord[]; source: DataSource }> {
+type GetAppsOptions = {
+  includeAll?: boolean;
+};
+
+export async function getApps(options: GetAppsOptions = {}): Promise<{ apps: AppRecord[]; source: DataSource }> {
   if (!supabase) {
     return { apps: [], source: "demo" };
   }
 
   try {
-    const { data, error } = await supabase.from("apps").select("*");
+    let query = supabase.from("apps").select("*");
+
+    if (!options.includeAll) {
+      query = query.or("status.eq.approved,status.is.null");
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       return { apps: [], source: "demo" };

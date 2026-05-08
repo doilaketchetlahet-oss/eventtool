@@ -1,9 +1,8 @@
 "use client";
-import type { AppRecord } from "@/types/app";
-import { createApp } from "@/services/apps";
-import { createSlug, getAppUrl, parseTags } from "@/lib/app-utils";
+import type { AppRecord, CategoryRecord } from "@/types/app";
+import { getAppUrl, parseTags } from "@/lib/app-utils";
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -13,7 +12,6 @@ import {
   Command,
   Layers3,
   Search,
-  Send,
   Sparkles,
   ArrowUpRight,
   X,
@@ -121,6 +119,7 @@ type FeaturedApp = (typeof featuredApps)[number];
 
 type HomePageClientProps = {
   apps: AppRecord[];
+  categories: CategoryRecord[];
   dataSource: DataSource;
 };
 
@@ -149,27 +148,28 @@ function mapSupabaseApp(app: AppRecord, index: number): FeaturedApp {
   };
 }
 
-export default function HomePageClient({ apps, dataSource }: HomePageClientProps) {
+export default function HomePageClient({ apps, categories: supabaseCategories, dataSource }: HomePageClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const [activeCategory, setActiveCategory] = useState(searchParams.get("category") || "Tất cả");
   const [selectedApp, setSelectedApp] = useState<FeaturedApp | null>(null);
-  const [isSubmitOpen, setIsSubmitOpen] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
   const [liveApps, setLiveApps] = useState<FeaturedApp[]>(() =>
     apps.length > 0 ? apps.map(mapSupabaseApp) : dataSource === "supabase" ? [] : featuredApps
   );
 
   const displayApps = liveApps;
+  const approvedApps = displayApps.filter((app) => true);
 
   const categoryOptions = useMemo(() => {
-    const names = displayApps.flatMap((app) => [app.category, ...app.tags]);
+    if (supabaseCategories.length > 0) {
+      return ["Tất cả", ...supabaseCategories.map((category) => category.name)];
+    }
+
+    const names = approvedApps.flatMap((app) => [app.category, ...app.tags]);
 
     return ["Tất cả", ...Array.from(new Set(names))];
-  }, [displayApps]);
+  }, [approvedApps, supabaseCategories]);
 
   const visibleCategories = useMemo(
     () =>
@@ -177,13 +177,13 @@ export default function HomePageClient({ apps, dataSource }: HomePageClientProps
         .filter((category) => category !== "Tất cả")
         .map((category) => ({
           name: category,
-          count: `${displayApps.filter((app) => app.category === category || app.tags.includes(category)).length} ứng dụng`
+          count: `${approvedApps.filter((app) => app.category === category || app.tags.includes(category)).length} ứng dụng`
         })),
-    [categoryOptions, displayApps]
+    [categoryOptions, approvedApps]
   );
 
   const normalizedQuery = query.trim().toLowerCase();
-  const filteredApps = displayApps.filter((app) => {
+  const filteredApps = approvedApps.filter((app) => {
     const matchesSearch =
       !normalizedQuery ||
       [app.name, app.category, app.description, app.signal, ...app.tags].some((value) =>
@@ -226,37 +226,6 @@ export default function HomePageClient({ apps, dataSource }: HomePageClientProps
     router.replace(`/?${params.toString()}`, { scroll: false });
   }
 
-  async function handleSubmitApp(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setIsSubmitting(true);
-    setSubmitError(null);
-
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    const title = String(formData.get("appName") ?? "").trim();
-    const description = String(formData.get("description") ?? "").trim();
-
-    try {
-      const data = await createApp({
-        title,
-        slug: createSlug(title),
-        description,
-        long_description: description,
-        category: String(formData.get("category") ?? "Ứng dụng").trim(),
-        download_url: String(formData.get("website") ?? "").trim()
-      });
-
-      setLiveApps((current) => [mapSupabaseApp(data as AppRecord, 0), ...current]);
-
-      form.reset();
-      setIsSubmitted(true);
-    } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Không thể lưu ứng dụng vào Supabase.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#020308]">
       <div className="pointer-events-none absolute inset-0 grid-glow opacity-25" />
@@ -297,9 +266,9 @@ export default function HomePageClient({ apps, dataSource }: HomePageClientProps
               </a>
             </div>
 
-            <Button variant="outline" size="sm" className="border-white/15 bg-white/5" onClick={() => setIsSubmitOpen(true)}>
-              Gửi ứng dụng
-            </Button>
+            <Link href="/admin" className="inline-flex h-9 items-center justify-center rounded-full border border-white/15 bg-white/5 px-4 text-sm font-medium text-white transition-colors hover:bg-white/10">
+              Admin
+            </Link>
           </nav>
         </motion.header>
 
@@ -706,106 +675,6 @@ export default function HomePageClient({ apps, dataSource }: HomePageClientProps
         </div>
       ) : null}
 
-      {isSubmitOpen ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-          <button
-            aria-label="Đóng form gửi ứng dụng"
-            className="absolute inset-0 bg-slate-950/75 backdrop-blur-xl"
-            onClick={() => {
-              setIsSubmitOpen(false);
-              setIsSubmitted(false);
-              setSubmitError(null);
-            }}
-          />
-          <motion.form
-            initial={{ opacity: 0, y: 24, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            onSubmit={handleSubmitApp}
-            className="glass relative w-full max-w-xl overflow-hidden rounded-[2rem] p-6 shadow-glow sm:p-7"
-          >
-            <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/60 to-transparent" />
-            <button
-              type="button"
-              aria-label="Đóng"
-              onClick={() => {
-                setIsSubmitOpen(false);
-                setIsSubmitted(false);
-                setSubmitError(null);
-              }}
-              className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/50 transition-colors hover:text-white"
-            >
-              <X className="h-4 w-4" />
-            </button>
-
-            {isSubmitted ? (
-              <div className="py-8 text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-emerald-300/20 bg-emerald-300/10 text-emerald-200 shadow-[0_0_40px_rgba(110,231,183,0.12)]">
-                  <CheckCircle2 className="h-6 w-6" />
-                </div>
-                <h3 className="mt-5 text-2xl font-semibold tracking-[-0.04em] text-white">Đã lưu vào Supabase</h3>
-                <p className="mx-auto mt-3 max-w-sm text-sm leading-7 text-white/55">
-                  Ứng dụng đã được ghi vào bảng `apps` và sẽ xuất hiện trên giao diện sau khi đồng bộ dữ liệu.
-                </p>
-                <Button
-                  className="mt-6"
-                  onClick={() => {
-                    setIsSubmitOpen(false);
-                    setIsSubmitted(false);
-                    setSubmitError(null);
-                  }}
-                >
-                  Hoàn tất
-                </Button>
-              </div>
-            ) : (
-              <>
-                <p className="text-xs uppercase tracking-[0.24em] text-cyan-100/50">Gửi ứng dụng</p>
-                <h3 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-white">Đưa sản phẩm của bạn lên KhoApp.</h3>
-                <p className="mt-3 text-sm leading-7 text-white/55">
-                  Điền thông tin cơ bản để lưu ứng dụng thật vào Supabase. Hiện tại hệ thống sẽ ghi trực tiếp vào bảng `apps`.
-                </p>
-
-                {submitError ? (
-                  <div className="mt-5 rounded-2xl border border-rose-300/15 bg-rose-300/10 px-4 py-3 text-sm text-rose-100">
-                    {submitError}
-                  </div>
-                ) : null}
-
-                <div className="mt-6 space-y-4">
-                  <Input name="appName" required placeholder="Tên ứng dụng" />
-                  <Input name="website" required type="url" placeholder="Website hoặc landing page" />
-                  <Input name="category" required placeholder="Danh mục, ví dụ: AI, Thiết kế, Công cụ dev" />
-                  <textarea
-                    name="description"
-                    required
-                    rows={4}
-                    placeholder="Mô tả ngắn về ứng dụng"
-                    className="min-h-28 w-full rounded-[1.5rem] border border-white/10 bg-white/5 px-5 py-4 text-sm text-white placeholder:text-white/40 shadow-sm backdrop-blur-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-                  />
-                </div>
-
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => {
-                      setIsSubmitOpen(false);
-                      setIsSubmitted(false);
-                      setSubmitError(null);
-                    }}
-                  >
-                    Hủy
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? "Đang lưu..." : "Gửi và lưu"}
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
-              </>
-            )}
-          </motion.form>
-        </div>
-      ) : null}
     </main>
   );
 }

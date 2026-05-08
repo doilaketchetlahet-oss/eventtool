@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
-import { ArrowLeft, Edit3, Plus, Star, Trash2 } from "lucide-react";
+import { ArrowLeft, Edit3, Plus, Star, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { createApp, deleteApp, updateApp } from "@/services/apps";
+import { createApp, deleteApp, updateApp, uploadThumbnail } from "@/services/apps";
 import { createSlug, parseTags } from "@/lib/app-utils";
 import type { AppRecord } from "@/types/app";
 
@@ -19,6 +19,7 @@ export default function AdminDashboard({ initialApps }: AdminDashboardProps) {
   const [editingApp, setEditingApp] = useState<AppRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const analytics = useMemo(
     () => ({
@@ -48,15 +49,26 @@ export default function AdminDashboard({ initialApps }: AdminDashboardProps) {
       thumbnail_url: String(formData.get("thumbnail_url") ?? "").trim(),
       download_url: String(formData.get("download_url") ?? "").trim(),
       tags: String(formData.get("tags") ?? "").trim(),
+      status: String(formData.get("status") ?? "approved").trim(),
       featured: formData.get("featured") === "on"
     };
+    const thumbnailFile = formData.get("thumbnail_file");
 
     try {
+      let thumbnailUrl = input.thumbnail_url;
+
+      if (thumbnailFile instanceof File && thumbnailFile.size > 0) {
+        setIsUploading(true);
+        thumbnailUrl = await uploadThumbnail(thumbnailFile);
+      }
+
+      const payload = { ...input, thumbnail_url: thumbnailUrl };
+
       if (editingApp) {
-        const updatedApp = await updateApp(editingApp.id, input);
+        const updatedApp = await updateApp(editingApp.id, payload);
         setApps((current) => current.map((app) => (app.id === updatedApp.id ? updatedApp : app)));
       } else {
-        const createdApp = await createApp(input);
+        const createdApp = await createApp(payload);
         setApps((current) => [createdApp, ...current]);
       }
 
@@ -66,6 +78,7 @@ export default function AdminDashboard({ initialApps }: AdminDashboardProps) {
       setError(error instanceof Error ? error.message : "Không thể lưu ứng dụng.");
     } finally {
       setIsSaving(false);
+      setIsUploading(false);
     }
   }
 
@@ -88,6 +101,19 @@ export default function AdminDashboard({ initialApps }: AdminDashboardProps) {
       setApps((current) => current.map((item) => (item.id === updatedApp.id ? updatedApp : item)));
     } catch (error) {
       setError(error instanceof Error ? error.message : "Không thể cập nhật featured.");
+    }
+  }
+
+  async function handleStatus(app: AppRecord, status: "pending" | "approved" | "rejected") {
+    try {
+      const updatedApp = await updateApp(app.id, {
+        title: app.title ?? "Ứng dụng",
+        description: app.description ?? "Đang cập nhật",
+        status
+      });
+      setApps((current) => current.map((item) => (item.id === updatedApp.id ? updatedApp : item)));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Không thể cập nhật trạng thái.");
     }
   }
 
@@ -130,12 +156,18 @@ export default function AdminDashboard({ initialApps }: AdminDashboardProps) {
                 <Input name="version" placeholder="Version" defaultValue={editingApp?.version ?? ""} />
                 <Input name="thumbnail_url" placeholder="Thumbnail URL" defaultValue={editingApp?.thumbnail_url ?? ""} />
                 <Input name="download_url" placeholder="Download URL" defaultValue={editingApp?.download_url ?? editingApp?.url ?? ""} />
+                <Input name="thumbnail_file" type="file" accept="image/*" />
                 <Input name="tags" placeholder="Tags, cách nhau bằng dấu phẩy" defaultValue={parseTags(editingApp?.tags, "").join(", ")} />
                 <textarea name="long_description" rows={4} placeholder="Long description" defaultValue={editingApp?.long_description ?? editingApp?.detail ?? ""} className="min-h-28 w-full rounded-[1.5rem] border border-white/10 bg-white/5 px-5 py-4 text-sm text-white placeholder:text-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40" />
                 <textarea name="changelog" rows={3} placeholder="Changelog" defaultValue={editingApp?.changelog ?? ""} className="min-h-24 w-full rounded-[1.5rem] border border-white/10 bg-white/5 px-5 py-4 text-sm text-white placeholder:text-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40" />
+                <select name="status" defaultValue={editingApp?.status ?? "approved"} className="h-12 w-full rounded-[1.5rem] border border-white/10 bg-white/5 px-5 text-sm text-white outline-none">
+                  <option value="approved">Approved</option>
+                  <option value="pending">Pending</option>
+                  <option value="rejected">Rejected</option>
+                </select>
                 <label className="flex items-center gap-3 text-sm text-white/60"><input name="featured" type="checkbox" defaultChecked={Boolean(editingApp?.featured)} /> Featured</label>
                 <div className="flex gap-3">
-                  <Button type="submit" disabled={isSaving}>{isSaving ? "Đang lưu..." : editingApp ? "Cập nhật" : "Thêm app"}<Plus className="h-4 w-4" /></Button>
+                  <Button type="submit" disabled={isSaving || isUploading}>{isSaving || isUploading ? "Đang lưu..." : editingApp ? "Cập nhật" : "Thêm app"}<Plus className="h-4 w-4" /></Button>
                   {editingApp ? <Button type="button" variant="secondary" onClick={() => setEditingApp(null)}>Hủy</Button> : null}
                 </div>
               </form>
@@ -149,11 +181,13 @@ export default function AdminDashboard({ initialApps }: AdminDashboardProps) {
                 <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="flex items-center gap-2 text-base font-medium text-white">{app.title}{app.featured ? <Star className="h-4 w-4 fill-amber-200 text-amber-200" /> : null}</div>
-                    <div className="mt-1 text-sm text-white/50">{app.category ?? "Ứng dụng"} · {app.downloads_count ?? 0} downloads</div>
+                    <div className="mt-1 text-sm text-white/50">{app.category ?? "Ứng dụng"} · {app.status ?? "approved"} · {app.downloads_count ?? 0} downloads</div>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button size="sm" variant="secondary" onClick={() => setEditingApp(app)}><Edit3 className="h-4 w-4" />Sửa</Button>
                     <Button size="sm" variant="outline" onClick={() => handleToggleFeatured(app)}><Star className="h-4 w-4" />Featured</Button>
+                    <Button size="sm" variant="outline" onClick={() => handleStatus(app, "approved")}>Approve</Button>
+                    <Button size="sm" variant="outline" onClick={() => handleStatus(app, "pending")}>Pending</Button>
                     <Button size="sm" variant="outline" onClick={() => handleDelete(app)}><Trash2 className="h-4 w-4" />Xóa</Button>
                   </div>
                 </CardContent>

@@ -22,7 +22,8 @@ export async function createApp(input: AppFormInput) {
     thumbnail_url: input.thumbnail_url || null,
     download_url: input.download_url || null,
     tags: serializeTags(input.tags),
-    featured: input.featured ?? false
+    featured: input.featured ?? false,
+    status: input.status || "approved"
   };
 
   const { data, error } = await supabase.from("apps").insert([payload]).select("*").single();
@@ -96,4 +97,22 @@ export async function incrementDownload(app: AppRecord) {
   await supabase.from("downloads").insert([{ app_id: app.id }]);
 
   return data as AppRecord;
+}
+
+export async function uploadThumbnail(file: File) {
+  if (!supabase) {
+    throw new Error("Supabase chưa được cấu hình.");
+  }
+
+  const extension = file.name.split(".").pop() || "jpg";
+  const path = `thumbnails/${crypto.randomUUID()}.${extension}`;
+  const { error } = await supabase.storage.from("app-assets").upload(path, file, { upsert: false });
+
+  if (error) {
+    throw error;
+  }
+
+  const { data } = supabase.storage.from("app-assets").getPublicUrl(path);
+
+  return data.publicUrl;
 }
