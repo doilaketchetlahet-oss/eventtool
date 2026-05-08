@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -33,6 +34,23 @@ type AdminDashboardProps = {
 type AppStatus = "pending" | "approved" | "rejected";
 
 const pageSize = 6;
+
+function isSafeHttpUrl(value?: string | null) {
+  if (!value) {
+    return false;
+  }
+
+  try {
+    const url = new URL(value.startsWith("http") ? value : `https://${value}`);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function isImageFile(file: File) {
+  return file.type.startsWith("image/") && file.size <= 5 * 1024 * 1024;
+}
 
 function getFallbackTime(app: AppRecord) {
   return new Date(app.created_at ?? 0).getTime();
@@ -67,6 +85,7 @@ export default function AdminDashboard({ initialApps, initialCategories, initial
   const [selectedIds, setSelectedIds] = useState<Set<AppRecord["id"]>>(new Set());
   const [draggedFeaturedId, setDraggedFeaturedId] = useState<AppRecord["id"] | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [mobileTab, setMobileTab] = useState<"form" | "stats" | "list">("form");
 
   useEffect(() => {
     return () => {
@@ -175,6 +194,7 @@ export default function AdminDashboard({ initialApps, initialCategories, initial
     .join(" ");
   const lineChartArea = lineChartPoints ? `M ${lineChartPoints.replaceAll(" ", " L ")} L 308,120 L 12,120 Z` : "";
   const previewUrl = thumbnailPreview ?? editingApp?.thumbnail_url ?? "";
+  const hasDownloadUrl = Boolean(editingApp?.download_url ?? editingApp?.url);
 
   function getStatusClass(status?: string | null) {
     if (status === "pending") {
@@ -250,6 +270,10 @@ export default function AdminDashboard({ initialApps, initialCategories, initial
   }
 
   async function handleDeleteCategory(category: CategoryRecord) {
+    if (!window.confirm(`Xóa danh mục \"${category.name}\"?`)) {
+      return;
+    }
+
     try {
       await deleteCategory(category.id);
       setCategories((current) => current.filter((item) => item.id !== category.id));
@@ -265,6 +289,47 @@ export default function AdminDashboard({ initialApps, initialCategories, initial
 
     const form = event.currentTarget;
     const formData = new FormData(form);
+    const validationError = (() => {
+      const title = String(formData.get("title") ?? "").trim();
+      const description = String(formData.get("description") ?? "").trim();
+      const downloadUrl = String(formData.get("download_url") ?? "").trim();
+      const thumbnailUrl = String(formData.get("thumbnail_url") ?? "").trim();
+      const sourceUrl = String(formData.get("source_url") ?? "").trim();
+      const thumbnailFile = formData.get("thumbnail_file");
+
+      if (!title) {
+        return "Title không được trống.";
+      }
+
+      if (!description) {
+        return "Description không được trống.";
+      }
+
+      if (downloadUrl && !isSafeHttpUrl(downloadUrl)) {
+        return "Download URL không hợp lệ.";
+      }
+
+      if (thumbnailUrl && !isSafeHttpUrl(thumbnailUrl)) {
+        return "Thumbnail URL không hợp lệ.";
+      }
+
+      if (sourceUrl && !isSafeHttpUrl(sourceUrl)) {
+        return "Source URL không hợp lệ.";
+      }
+
+      if (thumbnailFile instanceof File && thumbnailFile.size > 0 && !isImageFile(thumbnailFile)) {
+        return "Thumbnail phải là ảnh dưới 5MB.";
+      }
+
+      return null;
+    })();
+
+    if (validationError) {
+      setError(validationError);
+      setIsSaving(false);
+      return;
+    }
+
     const title = String(formData.get("title") ?? "").trim();
     const input = {
       title,
@@ -276,6 +341,11 @@ export default function AdminDashboard({ initialApps, initialCategories, initial
       changelog: String(formData.get("changelog") ?? "").trim(),
       thumbnail_url: String(formData.get("thumbnail_url") ?? "").trim(),
       download_url: String(formData.get("download_url") ?? "").trim(),
+      file_size: String(formData.get("file_size") ?? "").trim(),
+      file_type: String(formData.get("file_type") ?? "").trim(),
+      platform: String(formData.get("platform") ?? "").trim(),
+      source_url: String(formData.get("source_url") ?? "").trim(),
+      checksum: String(formData.get("checksum") ?? "").trim(),
       tags: String(formData.get("tags") ?? "").trim(),
       status: String(formData.get("status") ?? "approved").trim(),
       featured: formData.get("featured") === "on"
@@ -323,10 +393,21 @@ export default function AdminDashboard({ initialApps, initialCategories, initial
       return;
     }
 
+    if (!isImageFile(file)) {
+      setError("Thumbnail phải là ảnh dưới 5MB.");
+      event.target.value = "";
+      setThumbnailPreview(null);
+      return;
+    }
+
     setThumbnailPreview(URL.createObjectURL(file));
   }
 
   async function handleDelete(app: AppRecord) {
+    if (!window.confirm(`Xóa app \"${app.title ?? "Ứng dụng"}\"?`)) {
+      return;
+    }
+
     try {
       await deleteApp(app.id);
       setApps((current) => current.filter((item) => item.id !== app.id));
@@ -506,8 +587,22 @@ export default function AdminDashboard({ initialApps, initialCategories, initial
 
         {error ? <div className="rounded-2xl border border-rose-300/15 bg-rose-300/10 px-4 py-3 text-sm text-rose-100">{error}</div> : null}
 
+        <div className="lg:hidden">
+          <div className="flex gap-2 rounded-full border border-white/10 bg-white/5 p-2 text-xs text-white/55">
+            {[
+              ["form", "Form"],
+              ["stats", "Stats"],
+              ["list", "List"]
+            ].map(([key, label]) => (
+              <button key={key} type="button" onClick={() => setMobileTab(key as "form" | "stats" | "list")} className={`flex-1 rounded-full px-3 py-2 ${mobileTab === key ? "bg-white text-slate-950" : ""}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <section className="grid flex-1 gap-5 lg:h-[calc(100vh-7.25rem)] lg:grid-cols-[25rem_minmax(0,1fr)] lg:overflow-hidden">
-          <aside className="space-y-5 lg:h-full lg:overflow-y-auto lg:pr-1">
+          <aside className={`space-y-5 lg:h-full lg:overflow-y-auto lg:pr-1 ${mobileTab === "list" ? "hidden lg:block" : ""} ${mobileTab === "stats" ? "hidden lg:block" : ""}`}>
             <Card className="overflow-hidden rounded-[2rem] border-white/10 bg-white/[0.045] shadow-glow">
               <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/50 to-transparent" />
               <CardHeader className="p-6 pb-4">
@@ -526,6 +621,13 @@ export default function AdminDashboard({ initialApps, initialCategories, initial
                   <Input name="version" placeholder="Version" defaultValue={editingApp?.version ?? ""} />
                   <Input name="thumbnail_url" placeholder="Thumbnail URL" defaultValue={editingApp?.thumbnail_url ?? ""} />
                   <Input name="download_url" placeholder="Download URL" defaultValue={editingApp?.download_url ?? editingApp?.url ?? ""} />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Input name="file_size" placeholder="File size" defaultValue={editingApp?.file_size ?? ""} />
+                    <Input name="file_type" placeholder="File type" defaultValue={editingApp?.file_type ?? ""} />
+                  </div>
+                  <Input name="platform" placeholder="Platform" defaultValue={editingApp?.platform ?? ""} />
+                  <Input name="source_url" placeholder="Source URL" defaultValue={editingApp?.source_url ?? ""} />
+                  <Input name="checksum" placeholder="Checksum / SHA256" defaultValue={editingApp?.checksum ?? ""} />
                   <label className="block rounded-[1.5rem] border border-dashed border-white/15 bg-white/[0.035] p-4">
                     <span className="mb-3 flex items-center gap-2 text-sm text-white/65">
                       <ImagePlus className="h-4 w-4 text-cyan-200" />
@@ -534,7 +636,7 @@ export default function AdminDashboard({ initialApps, initialCategories, initial
                     <Input name="thumbnail_file" type="file" accept="image/*" onChange={handleThumbnailChange} />
                     <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/5">
                       {previewUrl ? (
-                        <img src={previewUrl} alt="Thumbnail preview" className="h-40 w-full object-cover" />
+                        <Image src={previewUrl} alt="Thumbnail preview" width={640} height={320} className="h-40 w-full object-cover" unoptimized />
                       ) : (
                         <div className="flex h-40 items-center justify-center text-sm text-white/35">Chưa có preview</div>
                       )}
@@ -597,17 +699,21 @@ export default function AdminDashboard({ initialApps, initialCategories, initial
                   <Button type="submit"><Plus className="h-4 w-4" />Thêm</Button>
                 </form>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {categories.map((category) => (
-                    <button key={String(category.id)} onClick={() => handleDeleteCategory(category)} className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/60 transition-all hover:-translate-y-0.5 hover:border-rose-300/30 hover:text-rose-100">
-                      {category.name} x
-                    </button>
-                  ))}
+                  {categories.length === 0 ? (
+                    <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/45">Chưa có danh mục.</div>
+                  ) : (
+                    categories.map((category) => (
+                      <button key={String(category.id)} type="button" onClick={() => handleDeleteCategory(category)} className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/60 transition-all hover:-translate-y-0.5 hover:border-rose-300/30 hover:text-rose-100">
+                        {category.name} x
+                      </button>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
           </aside>
 
-          <div className="space-y-5 lg:h-full lg:overflow-y-auto lg:pl-1">
+          <div className={`space-y-5 lg:h-full lg:overflow-y-auto lg:pl-1 ${mobileTab === "form" ? "hidden lg:block" : ""}`}>
             <section className="grid gap-4 md:grid-cols-4">
               {[
                 ["Tổng ứng dụng", analytics.total, "from-cyan-300/45 to-blue-500/10"],
@@ -769,7 +875,7 @@ export default function AdminDashboard({ initialApps, initialCategories, initial
               </CardContent>
             </Card>
 
-            {filteredAdminApps.length === 0 ? <Card className="rounded-[2rem]"><CardContent className="p-8 text-center text-white/55">Không có ứng dụng phù hợp.</CardContent></Card> : null}
+            {filteredAdminApps.length === 0 ? <Card className="rounded-[2rem]"><CardContent className="p-8 text-center text-white/55">Không có ứng dụng phù hợp. Thêm app đầu tiên ở cột trái.</CardContent></Card> : null}
 
             {paginatedApps.map((app) => (
               <Card key={String(app.id)} className="group overflow-hidden rounded-[1.5rem] border-white/10 bg-white/[0.04] transition-all duration-300 hover:-translate-y-0.5 hover:border-cyan-200/20 hover:bg-white/[0.06]">
@@ -779,7 +885,7 @@ export default function AdminDashboard({ initialApps, initialCategories, initial
                     <button type="button" onClick={() => setSelectedApp(app)} className="flex min-w-0 flex-1 items-center gap-4 text-left">
                       <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/5">
                         {app.thumbnail_url ? (
-                          <img src={app.thumbnail_url} alt={app.title ?? "thumbnail"} className="h-full w-full object-cover" />
+                          <Image src={app.thumbnail_url} alt={app.title ?? "thumbnail"} width={96} height={96} className="h-full w-full object-cover" unoptimized />
                         ) : (
                           <span className="text-sm font-semibold text-white/60">{String(app.title ?? "AA").slice(0, 2).toUpperCase()}</span>
                         )}

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
@@ -195,6 +196,19 @@ function formatDate(value?: string | null) {
   return dateFormatter.format(date);
 }
 
+function isSafeHttpUrl(value?: string | null) {
+  if (!value) {
+    return false;
+  }
+
+  try {
+    const url = new URL(value.startsWith("http") ? value : `https://${value}`);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function mapSupabaseApp(app: AppRecord, index: number): ArchiveApp {
   const category = app.category ?? "Ứng dụng";
   const tags = parseTags(app.tags, category);
@@ -258,7 +272,7 @@ function AppCard({ app, onSelect }: AppCardProps) {
         <CardContent className="p-5 sm:p-6">
           <div className="mb-4 overflow-hidden rounded-[1.5rem] border border-white/[0.08] bg-white/[0.035]">
             {app.thumbnailUrl ? (
-              <img src={app.thumbnailUrl} alt={app.name} className="h-44 w-full object-cover" />
+              <Image src={app.thumbnailUrl} alt={app.name} width={640} height={352} className="h-44 w-full object-cover" unoptimized />
             ) : (
               <div className={`flex h-44 items-end justify-between bg-gradient-to-br ${app.accent} p-4`}>
                 <div>
@@ -359,7 +373,6 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
 
   const spotlightApp = selectedApp ?? filteredApps[0] ?? displayApps[0] ?? null;
   const totalDownloads = displayApps.reduce((total, app) => total + app.downloadsCount, 0);
-  const latestUpdate = [...displayApps].sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())[0]?.createdAt ?? null;
   const latestVersion = [...displayApps].sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())[0]?.version ?? "-";
 
   function scrollToSection(id: string) {
@@ -397,6 +410,33 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
   function clearFilters() {
     setQuery("");
     handleCategoryChange("Tất cả");
+  }
+
+  if (displayApps.length === 0) {
+    return (
+      <main className="relative min-h-screen overflow-hidden bg-[#020308]">
+        <div className="pointer-events-none absolute inset-0 grid-glow opacity-25" />
+        <div className="pointer-events-none absolute inset-0 noise opacity-[0.035]" />
+        <div className="pointer-events-none absolute inset-0 cinematic-vignette" />
+        <div className="relative mx-auto flex min-h-screen w-full max-w-4xl flex-col justify-center px-5 py-10 text-center text-white sm:px-6 lg:px-8">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/50">
+            <Archive className="h-7 w-7" />
+          </div>
+          <h1 className="mt-6 text-4xl font-semibold tracking-[-0.05em] sm:text-5xl">Kho còn trống</h1>
+          <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-white/55 sm:text-base">
+            Chưa có app nào trong kho. Mở admin để thêm app đầu tiên, thumbnail, version và link tải.
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link href="/admin" className="inline-flex h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-medium text-slate-950 hover:bg-white/90">
+              Đi tới admin
+            </Link>
+            <Button variant="secondary" size="lg" onClick={() => router.refresh()}>
+              Tải lại dữ liệu
+            </Button>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -565,7 +605,7 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
                     <>
                       <div className={`relative overflow-hidden rounded-[1.5rem] border border-white/[0.08] bg-gradient-to-br ${spotlightApp.accent}`}>
                         {spotlightApp.thumbnailUrl ? (
-                          <img src={spotlightApp.thumbnailUrl} alt={spotlightApp.name} className="h-48 w-full object-cover" />
+                          <Image src={spotlightApp.thumbnailUrl} alt={spotlightApp.name} width={960} height={480} className="h-48 w-full object-cover" unoptimized />
                         ) : (
                           <div className="flex h-48 items-end justify-between p-5">
                             <div>
@@ -878,7 +918,7 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
             <div className="px-6 sm:px-7">
               <div className={`relative overflow-hidden rounded-[1.6rem] border border-white/10 bg-gradient-to-br ${selectedApp.accent}`}>
                 {selectedApp.thumbnailUrl ? (
-                  <img src={selectedApp.thumbnailUrl} alt={selectedApp.name} className="h-56 w-full object-cover" />
+                        <Image src={selectedApp.thumbnailUrl} alt={selectedApp.name} width={1200} height={720} className="h-56 w-full object-cover" unoptimized />
                 ) : (
                   <div className="flex h-56 items-end justify-between p-6">
                     <div>
@@ -923,10 +963,10 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
               <div className="mt-7 flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm text-white/45">Mở app để tải hoặc xem chi tiết đầy đủ.</div>
                 <div className="flex flex-wrap gap-3">
-                  <a
-                    href={selectedApp.downloadUrl || selectedApp.url}
-                    target={selectedApp.downloadUrl ? "_blank" : undefined}
-                    rel={selectedApp.downloadUrl ? "noopener noreferrer" : undefined}
+                    <a
+                      href={isSafeHttpUrl(selectedApp.downloadUrl) ? selectedApp.downloadUrl! : selectedApp.url}
+                      target={isSafeHttpUrl(selectedApp.downloadUrl) ? "_blank" : undefined}
+                      rel={isSafeHttpUrl(selectedApp.downloadUrl) ? "noopener noreferrer" : undefined}
                     className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-medium text-slate-950 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_16px_50px_rgba(255,255,255,0.12)] transition-colors hover:bg-white/90"
                   >
                     <Download className="h-4 w-4" />

@@ -4,9 +4,24 @@
 alter table apps add column if not exists status text not null default 'approved';
 alter table apps add column if not exists updated_at timestamptz not null default now();
 alter table apps add column if not exists featured_order integer;
+alter table apps add column if not exists file_size text;
+alter table apps add column if not exists file_type text;
+alter table apps add column if not exists platform text;
+alter table apps add column if not exists source_url text;
+alter table apps add column if not exists checksum text;
 
 create index if not exists apps_status_idx on apps(status);
 create index if not exists apps_featured_order_idx on apps(featured_order);
+
+with ranked_featured as (
+  select id, row_number() over (order by created_at desc, id) as next_order
+  from apps
+  where featured = true and featured_order is null
+)
+update apps
+set featured_order = ranked_featured.next_order
+from ranked_featured
+where apps.id = ranked_featured.id;
 
 insert into storage.buckets (id, name, public)
 values ('app-assets', 'app-assets', true)

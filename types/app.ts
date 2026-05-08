@@ -9,6 +9,11 @@ export type AppRecord = {
   changelog?: string | null;
   thumbnail_url?: string | null;
   download_url?: string | null;
+  file_size?: string | null;
+  file_type?: string | null;
+  platform?: string | null;
+  source_url?: string | null;
+  checksum?: string | null;
   downloads_count?: number | null;
   featured?: boolean | null;
   featured_order?: number | null;
@@ -31,6 +36,11 @@ export type AppFormInput = {
   changelog?: string;
   thumbnail_url?: string;
   download_url?: string;
+  file_size?: string;
+  file_type?: string;
+  platform?: string;
+  source_url?: string;
+  checksum?: string;
   tags?: string;
   featured?: boolean;
   featured_order?: number;

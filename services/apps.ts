@@ -21,6 +21,11 @@ export async function createApp(input: AppFormInput) {
     changelog: input.changelog || "Đang cập nhật changelog.",
     thumbnail_url: input.thumbnail_url || null,
     download_url: input.download_url || null,
+    file_size: input.file_size || null,
+    file_type: input.file_type || null,
+    platform: input.platform || null,
+    source_url: input.source_url || null,
+    checksum: input.checksum || null,
     tags: serializeTags(input.tags),
     featured: input.featured ?? false,
     featured_order: input.featured_order,
@@ -84,6 +89,9 @@ export async function incrementDownload(app: AppRecord) {
   }
 
   const nextCount = (app.downloads_count ?? 0) + 1;
+
+  await supabase.from("downloads").insert([{ app_id: app.id }]);
+
   const { data, error } = await supabase
     .from("apps")
     .update({ downloads_count: nextCount })
@@ -94,8 +102,6 @@ export async function incrementDownload(app: AppRecord) {
   if (error) {
     throw error;
   }
-
-  await supabase.from("downloads").insert([{ app_id: app.id }]);
 
   return data as AppRecord;
 }
