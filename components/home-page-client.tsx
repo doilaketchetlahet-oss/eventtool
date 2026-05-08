@@ -1,7 +1,10 @@
 "use client";
 import type { AppRecord } from "@/types/app";
-import { supabase } from "@/lib/supabase";
+import { createApp } from "@/services/apps";
+import { createSlug, getAppUrl, parseTags } from "@/lib/app-utils";
+import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -26,6 +29,7 @@ import type { DataSource } from "@/lib/get-apps";
 
 const featuredApps = [
   {
+    id: "pulse",
     name: "Pulse",
     category: "Phân tích",
     description: "Theo dõi chỉ số sản phẩm theo thời gian thực với giao diện điều khiển tinh gọn.",
@@ -37,6 +41,7 @@ const featuredApps = [
     url: "pulse.app"
   },
   {
+    id: "draft",
     name: "Draft",
     category: "Soạn thảo",
     description: "Không gian viết tập trung cho ghi chú, chia sẻ đoạn nội dung và duyệt nhanh.",
@@ -48,6 +53,7 @@ const featuredApps = [
     url: "draft.space"
   },
   {
+    id: "orbit",
     name: "Orbit",
     category: "Quản lý dự án",
     description: "Trung tâm dự án nhẹ nhàng cho đội nhóm cần theo dõi rõ ràng mà không rối mắt.",
@@ -59,6 +65,7 @@ const featuredApps = [
     url: "orbit.team"
   },
   {
+    id: "glyph",
     name: "Glyph",
     category: "Thiết kế",
     description: "Quản lý design system, tài liệu hình ảnh và ghi chú phát hành chỉn chu.",
@@ -70,6 +77,7 @@ const featuredApps = [
     url: "glyph.design"
   },
   {
+    id: "frame",
     name: "Frame",
     category: "Video",
     description: "Công cụ duyệt nội dung cộng tác cho đội sáng tạo và agency.",
@@ -81,6 +89,7 @@ const featuredApps = [
     url: "frame.studio"
   },
   {
+    id: "relay",
     name: "Relay",
     category: "Công cụ dev",
     description: "Triển khai và chia sẻ công cụ nội bộ với bề mặt vận hành gọn gàng.",
@@ -117,13 +126,10 @@ type HomePageClientProps = {
 
 function mapSupabaseApp(app: AppRecord, index: number): FeaturedApp {
   const category = app.category ?? "Ứng dụng";
-  const tags = Array.isArray(app.tags)
-    ? app.tags
-    : typeof app.tags === "string"
-      ? app.tags.split(",").map((tag) => tag.trim()).filter(Boolean)
-      : [];
+  const tags = parseTags(app.tags, category);
 
   return {
+    id: app.slug || String(app.id),
     name: app.title ?? "Ứng dụng chưa đặt tên",
     category,
     description: app.description ?? "Mô tả ứng dụng đang được cập nhật.",
@@ -135,24 +141,26 @@ function mapSupabaseApp(app: AppRecord, index: number): FeaturedApp {
       "from-pink-400/25 to-rose-500/10",
       "from-sky-400/25 to-indigo-500/10"
     ][index % 6],
-    meta: app.meta ?? "Đang cập nhật",
+    meta: app.meta ?? `${app.downloads_count ?? 0} lượt tải`,
     signal: app.signal ?? "Nổi bật",
-    tags: tags.length > 0 ? tags : [category],
-    detail: app.detail ?? "Chi tiết đang được cập nhật từ dữ liệu Supabase.",
-    url: app.url ?? "demo.app"
+    tags,
+    detail: app.long_description ?? app.detail ?? "Chi tiết đang được cập nhật từ dữ liệu Supabase.",
+    url: getAppUrl(app)
   };
 }
 
 export default function HomePageClient({ apps, dataSource }: HomePageClientProps) {
-  const [query, setQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState("Tất cả");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [query, setQuery] = useState(searchParams.get("q") || "");
+  const [activeCategory, setActiveCategory] = useState(searchParams.get("category") || "Tất cả");
   const [selectedApp, setSelectedApp] = useState<FeaturedApp | null>(null);
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [liveApps, setLiveApps] = useState<FeaturedApp[]>(() =>
-    apps.length > 0 ? apps.map(mapSupabaseApp) : featuredApps
+    apps.length > 0 ? apps.map(mapSupabaseApp) : dataSource === "supabase" ? [] : featuredApps
   );
 
   const displayApps = liveApps;
@@ -192,7 +200,30 @@ export default function HomePageClient({ apps, dataSource }: HomePageClientProps
   }
 
   function handleSearch() {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (query.trim()) {
+      params.set("q", query.trim());
+    } else {
+      params.delete("q");
+    }
+
+    router.replace(`/?${params.toString()}`, { scroll: false });
     scrollToSection("featured");
+  }
+
+  function handleCategoryChange(category: string) {
+    const params = new URLSearchParams(searchParams.toString());
+
+    setActiveCategory(category);
+
+    if (category === "Tất cả") {
+      params.delete("category");
+    } else {
+      params.set("category", category);
+    }
+
+    router.replace(`/?${params.toString()}`, { scroll: false });
   }
 
   async function handleSubmitApp(event: FormEvent<HTMLFormElement>) {
@@ -206,23 +237,16 @@ export default function HomePageClient({ apps, dataSource }: HomePageClientProps
     const description = String(formData.get("description") ?? "").trim();
 
     try {
-      if (!supabase) {
-        throw new Error("Supabase chưa được cấu hình.");
-      }
+      const data = await createApp({
+        title,
+        slug: createSlug(title),
+        description,
+        long_description: description,
+        category: String(formData.get("category") ?? "Ứng dụng").trim(),
+        download_url: String(formData.get("website") ?? "").trim()
+      });
 
-      const { data, error } = await supabase
-        .from("apps")
-        .insert([{ title, description }])
-        .select("*")
-        .single();
-
-      if (error) {
-        throw error;
-      }
-
-      if (data) {
-        setLiveApps((current) => [mapSupabaseApp(data as AppRecord, 0), ...current]);
-      }
+      setLiveApps((current) => [mapSupabaseApp(data as AppRecord, 0), ...current]);
 
       form.reset();
       setIsSubmitted(true);
@@ -467,7 +491,7 @@ export default function HomePageClient({ apps, dataSource }: HomePageClientProps
             {categoryOptions.map((category) => (
               <button
                 key={category}
-                onClick={() => setActiveCategory(category)}
+                onClick={() => handleCategoryChange(category)}
                 className={`rounded-full border px-4 py-2 text-sm transition-all duration-200 ${
                   activeCategory === category
                     ? "border-cyan-200/40 bg-cyan-200/10 text-white shadow-[0_0_28px_rgba(125,211,252,0.12)]"
@@ -515,13 +539,10 @@ export default function HomePageClient({ apps, dataSource }: HomePageClientProps
                     <p className="text-sm leading-7 text-white/60">{app.description}</p>
                     <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-4 text-xs text-white/45">
                       <span>{app.meta}</span>
-                      <button
-                        onClick={() => setSelectedApp(app)}
-                        className="inline-flex items-center gap-1 text-white/70 transition-colors hover:text-white"
-                      >
+                      <Link href={app.url} className="inline-flex items-center gap-1 text-white/70 transition-colors hover:text-white">
                         Xem ứng dụng
                         <ArrowUpRight className="h-3.5 w-3.5" />
-                      </button>
+                      </Link>
                     </div>
                   </CardContent>
                 </Card>
@@ -543,7 +564,7 @@ export default function HomePageClient({ apps, dataSource }: HomePageClientProps
                 className="mt-5"
                 onClick={() => {
                   setQuery("");
-                  setActiveCategory("Tất cả");
+                  handleCategoryChange("Tất cả");
                 }}
               >
                 Xóa bộ lọc
@@ -576,12 +597,12 @@ export default function HomePageClient({ apps, dataSource }: HomePageClientProps
                 role="button"
                 tabIndex={0}
                 onClick={() => {
-                  setActiveCategory(category.name);
+                  handleCategoryChange(category.name);
                   scrollToSection("featured");
                 }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
-                    setActiveCategory(category.name);
+                    handleCategoryChange(category.name);
                     scrollToSection("featured");
                   }
                 }}
