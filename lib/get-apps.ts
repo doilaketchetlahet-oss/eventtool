@@ -25,7 +25,13 @@ export async function getApps(options: GetAppsOptions = {}): Promise<{ apps: App
       return { apps: [], source: "demo" };
     }
 
-    return { apps: (data ?? []) as AppRecord[], source: "supabase" };
+    const apps = ((data ?? []) as AppRecord[]).sort(
+      (a, b) =>
+        (a.featured_order ?? Number.MAX_SAFE_INTEGER) - (b.featured_order ?? Number.MAX_SAFE_INTEGER) ||
+        new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+    );
+
+    return { apps, source: "supabase" };
   } catch {
     return { apps: [], source: "demo" };
   }

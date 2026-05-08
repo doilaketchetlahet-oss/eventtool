@@ -40,7 +40,7 @@ export default function DownloadButton({ app, downloadUrl }: DownloadButtonProps
         className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-medium text-slate-950 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_16px_50px_rgba(255,255,255,0.12)] transition-colors hover:bg-white/90 disabled:opacity-70"
       >
         <Download className="h-4 w-4" />
-        {isLoading ? "Đang xử lý..." : "Tải ứng dụng"}
+        {isLoading ? "Đang mở..." : "Tải về"}
         <ArrowUpRight className="h-4 w-4" />
       </button>
       <span className="text-sm text-white/45">{count} lượt tải</span>

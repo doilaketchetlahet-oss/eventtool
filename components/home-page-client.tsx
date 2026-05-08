@@ -1,31 +1,31 @@
 "use client";
-import type { AppRecord, CategoryRecord } from "@/types/app";
-import { getAppUrl, parseTags } from "@/lib/app-utils";
+
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
+  Archive,
   ArrowRight,
-  Boxes,
-  CheckCircle2,
-  Command,
-  Layers3,
-  Search,
-  Sparkles,
   ArrowUpRight,
-  X,
-  Zap,
+  CheckCircle2,
   Grid3X3,
-  Orbit as OrbitIcon,
-  ShieldCheck
+  HardDrive,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  X,
+  Download,
+  Clock3
 } from "lucide-react";
+import type { AppRecord, CategoryRecord } from "@/types/app";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { getAppUrl, parseTags } from "@/lib/app-utils";
 import type { DataSource } from "@/lib/get-apps";
 
-const featuredApps = [
+const fallbackApps = [
   {
     id: "pulse",
     name: "Pulse",
@@ -36,7 +36,13 @@ const featuredApps = [
     signal: "Dữ liệu trực tiếp",
     tags: ["AI", "Năng suất"],
     detail: "Phù hợp cho founder, PM và đội growth cần nhìn nhanh chỉ số activation, retention và conversion mà không phải dựng dashboard phức tạp.",
-    url: "pulse.app"
+    url: "pulse.app",
+    downloadUrl: null,
+    thumbnailUrl: null,
+    downloadsCount: 12000,
+    version: "1.8.4",
+    featured: true,
+    createdAt: "2026-04-29"
   },
   {
     id: "draft",
@@ -48,7 +54,13 @@ const featuredApps = [
     signal: "Được chọn",
     tags: ["AI", "Năng suất"],
     detail: "Hỗ trợ đội content và marketing viết bản nháp, gom feedback, lưu template và xuất nội dung nhanh cho nhiều kênh.",
-    url: "draft.space"
+    url: "draft.space",
+    downloadUrl: null,
+    thumbnailUrl: null,
+    downloadsCount: 8400,
+    version: "2.1.0",
+    featured: true,
+    createdAt: "2026-04-24"
   },
   {
     id: "orbit",
@@ -60,7 +72,13 @@ const featuredApps = [
     signal: "Phù hợp đội nhóm",
     tags: ["Vận hành đội nhóm", "Năng suất"],
     detail: "Một lớp điều phối nhẹ cho sprint, roadmap và checklist vận hành, dành cho đội nhỏ muốn giữ mọi thứ rõ ràng.",
-    url: "orbit.team"
+    url: "orbit.team",
+    downloadUrl: null,
+    thumbnailUrl: null,
+    downloadsCount: 15000,
+    version: "3.0.1",
+    featured: true,
+    createdAt: "2026-04-20"
   },
   {
     id: "glyph",
@@ -72,7 +90,13 @@ const featuredApps = [
     signal: "Bản mới",
     tags: ["Thiết kế"],
     detail: "Tạo thư viện component, guideline hình ảnh và changelog thiết kế trong một không gian trình bày đẹp mắt.",
-    url: "glyph.design"
+    url: "glyph.design",
+    downloadUrl: null,
+    thumbnailUrl: null,
+    downloadsCount: 9100,
+    version: "1.4.2",
+    featured: false,
+    createdAt: "2026-04-30"
   },
   {
     id: "frame",
@@ -84,7 +108,13 @@ const featuredApps = [
     signal: "Quy trình studio",
     tags: ["Thiết kế", "Vận hành đội nhóm"],
     detail: "Dành cho studio video, agency và creator team cần duyệt bản dựng, để lại nhận xét theo timeline và chốt phiên bản cuối.",
-    url: "frame.studio"
+    url: "frame.studio",
+    downloadUrl: null,
+    thumbnailUrl: null,
+    downloadsCount: 6800,
+    version: "0.9.8",
+    featured: false,
+    createdAt: "2026-04-18"
   },
   {
     id: "relay",
@@ -96,11 +126,17 @@ const featuredApps = [
     signal: "Ưu tiên API",
     tags: ["Công cụ dev", "Tự động hóa"],
     detail: "Giúp đội kỹ thuật đóng gói internal tools, chia sẻ endpoint nội bộ và theo dõi trạng thái vận hành trên một giao diện sạch.",
-    url: "relay.dev"
+    url: "relay.dev",
+    downloadUrl: null,
+    thumbnailUrl: null,
+    downloadsCount: 11600,
+    version: "2.3.0",
+    featured: false,
+    createdAt: "2026-04-16"
   }
 ];
 
-const categories = [
+const fallbackCategories = [
   { name: "Năng suất", count: "128 ứng dụng" },
   { name: "AI", count: "94 ứng dụng" },
   { name: "Công cụ dev", count: "76 ứng dụng" },
@@ -109,13 +145,24 @@ const categories = [
   { name: "Vận hành đội nhóm", count: "33 ứng dụng" }
 ];
 
-const stats = [
-  { label: "Ứng dụng được chọn lọc", value: "1.2k" },
-  { label: "Nhà phát triển", value: "340" },
-  { label: "Lượt cài mỗi ngày", value: "18k" }
-];
-
-type FeaturedApp = (typeof featuredApps)[number];
+type ArchiveApp = {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  accent: string;
+  meta: string;
+  signal: string;
+  tags: string[];
+  detail: string;
+  url: string;
+  downloadUrl: string | null;
+  thumbnailUrl: string | null;
+  downloadsCount: number;
+  version: string | null;
+  featured: boolean;
+  createdAt: string | null;
+};
 
 type HomePageClientProps = {
   apps: AppRecord[];
@@ -123,12 +170,37 @@ type HomePageClientProps = {
   dataSource: DataSource;
 };
 
-function mapSupabaseApp(app: AppRecord, index: number): FeaturedApp {
+const numberFormatter = new Intl.NumberFormat("vi-VN");
+const dateFormatter = new Intl.DateTimeFormat("vi-VN", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric"
+});
+
+function formatDownloads(count: number) {
+  return numberFormatter.format(count);
+}
+
+function formatDate(value?: string | null) {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  return dateFormatter.format(date);
+}
+
+function mapSupabaseApp(app: AppRecord, index: number): ArchiveApp {
   const category = app.category ?? "Ứng dụng";
   const tags = parseTags(app.tags, category);
 
   return {
-    id: app.slug || String(app.id),
+    id: String(app.id),
     name: app.title ?? "Ứng dụng chưa đặt tên",
     category,
     description: app.description ?? "Mô tả ứng dụng đang được cập nhật.",
@@ -140,12 +212,94 @@ function mapSupabaseApp(app: AppRecord, index: number): FeaturedApp {
       "from-pink-400/25 to-rose-500/10",
       "from-sky-400/25 to-indigo-500/10"
     ][index % 6],
-    meta: app.meta ?? `${app.downloads_count ?? 0} lượt tải`,
-    signal: app.signal ?? "Nổi bật",
+    meta: app.meta ?? `${formatDownloads(app.downloads_count ?? 0)} lượt tải`,
+    signal: app.signal ?? (app.featured ? "Nổi bật" : "Đã lưu trữ"),
     tags,
     detail: app.long_description ?? app.detail ?? "Chi tiết đang được cập nhật từ dữ liệu Supabase.",
-    url: getAppUrl(app)
+    url: getAppUrl(app),
+    downloadUrl: app.download_url ?? null,
+    thumbnailUrl: app.thumbnail_url ?? null,
+    downloadsCount: app.downloads_count ?? 0,
+    version: app.version ?? null,
+    featured: Boolean(app.featured),
+    createdAt: app.created_at ?? null
   };
+}
+
+type AppCardProps = {
+  app: ArchiveApp;
+  onSelect: (app: ArchiveApp) => void;
+};
+
+function AppCard({ app, onSelect }: AppCardProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 18 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.25 }}
+      transition={{ duration: 0.45 }}
+      whileHover={{ y: -6 }}
+      className="group"
+    >
+      <Card
+        role="button"
+        tabIndex={0}
+        onClick={() => onSelect(app)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onSelect(app);
+          }
+        }}
+        className="relative h-full overflow-hidden rounded-[1.8rem] border-white/10 bg-white/[0.04] transition-all duration-300 group-hover:border-cyan-200/20 group-hover:bg-white/[0.06]"
+      >
+        <div className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r ${app.accent}`} />
+        <div className="absolute -right-16 -top-16 h-36 w-36 rounded-full bg-white/[0.035] blur-2xl transition-opacity group-hover:opacity-100" />
+        <CardContent className="p-5 sm:p-6">
+          <div className="mb-4 overflow-hidden rounded-[1.5rem] border border-white/[0.08] bg-white/[0.035]">
+            {app.thumbnailUrl ? (
+              <img src={app.thumbnailUrl} alt={app.name} className="h-44 w-full object-cover" />
+            ) : (
+              <div className={`flex h-44 items-end justify-between bg-gradient-to-br ${app.accent} p-4`}>
+                <div>
+                  <div className="text-xs uppercase tracking-[0.2em] text-white/55">Archive</div>
+                  <div className="mt-2 text-lg font-semibold text-white">{app.name}</div>
+                </div>
+                <Archive className="h-6 w-6 text-white/60" />
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <CardTitle className="truncate text-xl">{app.name}</CardTitle>
+              <CardDescription className="mt-1">{app.category}</CardDescription>
+            </div>
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/45 transition-colors group-hover:text-white/75">
+              <ArrowUpRight className="h-4 w-4" />
+            </div>
+          </div>
+
+          <p className="mt-4 line-clamp-3 text-sm leading-7 text-white/60">{app.description}</p>
+
+          <div className="mt-5 flex flex-wrap gap-2 text-[11px] text-white/55">
+            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">{app.signal}</span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">v{app.version ?? "-"}</span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">{formatDownloads(app.downloadsCount)} tải</span>
+            {app.featured ? <span className="rounded-full border border-cyan-200/20 bg-cyan-200/10 px-2.5 py-1 text-cyan-100">Nổi bật</span> : null}
+          </div>
+
+          <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4 text-xs text-white/45">
+            <span>{app.meta}</span>
+            <Link href={app.url} onClick={(event) => event.stopPropagation()} className="inline-flex items-center gap-1 text-white/70 transition-colors hover:text-white">
+              Trang app
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
 }
 
 export default function HomePageClient({ apps, categories: supabaseCategories, dataSource }: HomePageClientProps) {
@@ -153,23 +307,22 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("q") || "");
   const [activeCategory, setActiveCategory] = useState(searchParams.get("category") || "Tất cả");
-  const [selectedApp, setSelectedApp] = useState<FeaturedApp | null>(null);
-  const [liveApps, setLiveApps] = useState<FeaturedApp[]>(() =>
-    apps.length > 0 ? apps.map(mapSupabaseApp) : dataSource === "supabase" ? [] : featuredApps
+  const [selectedApp, setSelectedApp] = useState<ArchiveApp | null>(null);
+  const [liveApps] = useState<ArchiveApp[]>(() =>
+    apps.length > 0 ? apps.map(mapSupabaseApp) : dataSource === "supabase" ? [] : fallbackApps
   );
 
   const displayApps = liveApps;
-  const approvedApps = displayApps.filter((app) => true);
 
   const categoryOptions = useMemo(() => {
     if (supabaseCategories.length > 0) {
       return ["Tất cả", ...supabaseCategories.map((category) => category.name)];
     }
 
-    const names = approvedApps.flatMap((app) => [app.category, ...app.tags]);
+    const names = displayApps.flatMap((app) => [app.category, ...app.tags]).filter(Boolean);
 
     return ["Tất cả", ...Array.from(new Set(names))];
-  }, [approvedApps, supabaseCategories]);
+  }, [displayApps, supabaseCategories]);
 
   const visibleCategories = useMemo(
     () =>
@@ -177,23 +330,37 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
         .filter((category) => category !== "Tất cả")
         .map((category) => ({
           name: category,
-          count: `${approvedApps.filter((app) => app.category === category || app.tags.includes(category)).length} ứng dụng`
+          count: `${displayApps.filter((app) => app.category === category || app.tags.includes(category)).length} ứng dụng`
         })),
-    [categoryOptions, approvedApps]
+    [categoryOptions, displayApps]
   );
 
   const normalizedQuery = query.trim().toLowerCase();
-  const filteredApps = approvedApps.filter((app) => {
+  const filteredApps = displayApps.filter((app) => {
     const matchesSearch =
       !normalizedQuery ||
-      [app.name, app.category, app.description, app.signal, ...app.tags].some((value) =>
-        value.toLowerCase().includes(normalizedQuery)
-      );
+      [app.name, app.category, app.description, app.signal, ...app.tags].some((value) => value.toLowerCase().includes(normalizedQuery));
     const matchesCategory = activeCategory === "Tất cả" || app.tags.includes(activeCategory) || app.category === activeCategory;
 
     return matchesSearch && matchesCategory;
   });
-  const shownCount = filteredApps.length;
+
+  const featuredSectionApps = (filteredApps.filter((app) => app.featured).length > 0 ? filteredApps.filter((app) => app.featured) : [...filteredApps])
+    .sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)) || b.downloadsCount - a.downloadsCount)
+    .slice(0, 4);
+
+  const latestApps = [...filteredApps]
+    .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())
+    .slice(0, 6);
+
+  const popularApps = [...filteredApps]
+    .sort((a, b) => b.downloadsCount - a.downloadsCount)
+    .slice(0, 6);
+
+  const spotlightApp = selectedApp ?? filteredApps[0] ?? displayApps[0] ?? null;
+  const totalDownloads = displayApps.reduce((total, app) => total + app.downloadsCount, 0);
+  const latestUpdate = [...displayApps].sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())[0]?.createdAt ?? null;
+  const latestVersion = [...displayApps].sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())[0]?.version ?? "-";
 
   function scrollToSection(id: string) {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -209,7 +376,7 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
     }
 
     router.replace(`/?${params.toString()}`, { scroll: false });
-    scrollToSection("featured");
+    scrollToSection("library");
   }
 
   function handleCategoryChange(category: string) {
@@ -224,6 +391,12 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
     }
 
     router.replace(`/?${params.toString()}`, { scroll: false });
+    scrollToSection("library");
+  }
+
+  function clearFilters() {
+    setQuery("");
+    handleCategoryChange("Tất cả");
   }
 
   return (
@@ -258,6 +431,9 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
               <a href="#featured" className="transition-colors hover:text-white">
                 Nổi bật
               </a>
+              <a href="#library" className="transition-colors hover:text-white">
+                Kho lưu trữ
+              </a>
               <a href="#categories" className="transition-colors hover:text-white">
                 Danh mục
               </a>
@@ -272,7 +448,7 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
           </nav>
         </motion.header>
 
-        <section id="top" className="relative flex flex-1 flex-col justify-center py-20 sm:py-24 lg:py-28">
+        <section id="top" className="relative flex flex-1 flex-col justify-center py-18 sm:py-22 lg:py-26">
           <div className="absolute inset-x-0 top-28 mx-auto h-px w-3/4 bg-gradient-to-r from-transparent via-cyan-200/25 to-transparent" />
           <div className="grid gap-16 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
             <div className="max-w-3xl">
@@ -283,7 +459,7 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
                 className="mb-7 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-white/70 shadow-[0_0_32px_rgba(34,211,238,0.08)] backdrop-blur-xl"
               >
                 <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(103,232,249,0.9)]" />
-                Hệ thống khám phá ứng dụng mang phong cách điện ảnh
+                Kho lưu trữ ứng dụng để xem nhanh, tải gọn, không quảng cáo bán hàng
               </motion.div>
 
               <motion.div
@@ -300,10 +476,13 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
                         : "bg-amber-300 shadow-[0_0_18px_rgba(253,224,71,0.9)]"
                     }`}
                   />
-                  {dataSource === "supabase" ? "Đã kết nối Supabase" : "Đang dùng dữ liệu mẫu"}
+                  {dataSource === "supabase" ? "Dữ liệu live từ Supabase" : "Dữ liệu demo đang chạy"}
                 </span>
                 <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 backdrop-blur-xl">
-                  {shownCount} ứng dụng khả dụng
+                  {displayApps.length} ứng dụng
+                </span>
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 backdrop-blur-xl">
+                  {formatDownloads(totalDownloads)} lượt tải
                 </span>
               </motion.div>
 
@@ -313,7 +492,7 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
                 transition={{ duration: 0.65, delay: 0.05 }}
                 className="max-w-3xl text-5xl font-semibold tracking-[-0.06em] text-white sm:text-6xl lg:text-7xl"
               >
-                Chia sẻ ứng dụng với diện mạo xứng tầm.
+                Kho ứng dụng gọn, sạch, tải về nhanh.
               </motion.h1>
 
               <motion.p
@@ -322,7 +501,7 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
                 transition={{ duration: 0.65, delay: 0.12 }}
                 className="mt-7 max-w-2xl text-base leading-8 text-white/60 sm:text-lg"
               >
-                Một không gian giới thiệu tinh gọn để khám phá phần mềm được chọn lọc, duyệt theo nhu cầu sử dụng và trình bày từng sản phẩm với chiều sâu điện ảnh cùng cảm hứng tương lai nhẹ nhàng.
+                Tập trung vào lưu trữ, tìm kiếm và tải ứng dụng. Mỗi app có mô tả ngắn, tag, version, lượt tải và đường dẫn rõ ràng để mở chi tiết hoặc tải ngay.
               </motion.p>
 
               <motion.div
@@ -331,12 +510,12 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
                 transition={{ duration: 0.65, delay: 0.18 }}
                 className="mt-9 flex flex-wrap gap-3"
               >
-                <Button size="lg" className="group" onClick={() => scrollToSection("featured")}>
-                  Khám phá ứng dụng
+                <Button size="lg" className="group" onClick={() => scrollToSection("library")}> 
+                  Xem kho lưu trữ
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </Button>
-                <Button variant="secondary" size="lg" onClick={() => scrollToSection("categories")}>
-                  Xem danh mục
+                <Button variant="secondary" size="lg" onClick={() => scrollToSection("featured")}>
+                  Xem app nổi bật
                 </Button>
               </motion.div>
 
@@ -344,9 +523,14 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
                 initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.65, delay: 0.24 }}
-                className="mt-12 grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-3"
+                className="mt-12 grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
               >
-                {stats.map((item) => (
+                {[
+                  { label: "Ứng dụng lưu trữ", value: formatDownloads(displayApps.length) },
+                  { label: "Danh mục", value: formatDownloads(visibleCategories.length) },
+                  { label: "Lượt tải", value: formatDownloads(totalDownloads) },
+                  { label: "Bản mới nhất", value: latestVersion }
+                ].map((item) => (
                   <div key={item.label} className="glass rounded-3xl px-5 py-4">
                     <div className="text-2xl font-semibold tracking-[-0.03em] text-white">{item.value}</div>
                     <div className="mt-1 text-xs uppercase tracking-[0.18em] text-white/45">{item.label}</div>
@@ -366,56 +550,90 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
               <Card className="relative overflow-hidden rounded-[2.25rem] border-white/10 bg-white/[0.045] shadow-glow">
                 <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/50 to-transparent" />
                 <CardHeader className="border-b border-white/10 p-6 pb-5 sm:p-7">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4">
                     <div>
-                      <CardTitle className="text-lg">Nổi bật tuần này</CardTitle>
-                      <CardDescription>Ứng dụng được tuyển chọn với cách trình bày cao cấp</CardDescription>
+                      <CardTitle className="text-lg">App đang được xem</CardTitle>
+                      <CardDescription>Spotlight cho app trong kho lưu trữ</CardDescription>
                     </div>
                     <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 shadow-[0_0_28px_rgba(34,211,238,0.12)]">
-                      <Layers3 className="h-5 w-5 text-white/70" />
+                      <HardDrive className="h-5 w-5 text-white/70" />
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4 p-5 sm:p-6">
-                  {displayApps.slice(0, 3).map((app, index) => (
-                    <div
-                      key={app.name}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setSelectedApp(app)}
-                      onKeyDown={(event) => event.key === "Enter" && setSelectedApp(app)}
-                      className="group rounded-[1.5rem] border border-white/[0.08] bg-white/[0.035] p-4 transition-all duration-300 hover:border-cyan-200/20 hover:bg-white/[0.055]"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${app.accent} border border-white/10`}
-                        >
-                          <span className="text-sm font-semibold text-white">{app.name.slice(0, 2)}</span>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-4">
+                  {spotlightApp ? (
+                    <>
+                      <div className={`relative overflow-hidden rounded-[1.5rem] border border-white/[0.08] bg-gradient-to-br ${spotlightApp.accent}`}>
+                        {spotlightApp.thumbnailUrl ? (
+                          <img src={spotlightApp.thumbnailUrl} alt={spotlightApp.name} className="h-48 w-full object-cover" />
+                        ) : (
+                          <div className="flex h-48 items-end justify-between p-5">
                             <div>
-                              <div className="text-sm font-medium text-white">{app.name}</div>
-                              <div className="text-xs uppercase tracking-[0.16em] text-white/45">{app.category}</div>
+                              <div className="text-xs uppercase tracking-[0.22em] text-white/55">Archive preview</div>
+                              <div className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">{spotlightApp.name}</div>
                             </div>
-                            <ArrowUpRight className="h-4 w-4 text-white/30 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-white/60" />
+                            <Archive className="h-7 w-7 text-white/60" />
                           </div>
-                          <p className="mt-2 text-sm leading-6 text-white/55">{app.description}</p>
+                        )}
+                        <div className="absolute bottom-4 left-4 flex flex-wrap gap-2 text-[11px] text-white/75">
+                          <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 backdrop-blur-md">v{spotlightApp.version ?? "-"}</span>
+                          <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 backdrop-blur-md">{formatDownloads(spotlightApp.downloadsCount)} tải</span>
+                          {spotlightApp.featured ? <span className="rounded-full border border-cyan-200/20 bg-cyan-200/10 px-3 py-1.5 text-cyan-100 backdrop-blur-md">Nổi bật</span> : null}
                         </div>
                       </div>
-                      <div className="mt-4 flex items-center justify-between text-xs text-white/45">
-                        <span>{app.meta}</span>
-                        <span>{app.signal}</span>
+
+                      <div>
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <div className="text-xs uppercase tracking-[0.18em] text-white/35">{spotlightApp.category}</div>
+                            <h3 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">{spotlightApp.name}</h3>
+                          </div>
+                          <ArrowUpRight className="mt-1 h-4 w-4 text-white/35" />
+                        </div>
+                        <p className="mt-3 text-sm leading-7 text-white/60">{spotlightApp.description}</p>
                       </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {spotlightApp.tags.map((tag) => (
+                          <span key={tag} className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/55">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 text-sm text-white/55">
+                        <div className="rounded-[1.25rem] border border-white/10 bg-white/5 p-4">
+                          <div className="text-xs uppercase tracking-[0.18em] text-white/35">Signal</div>
+                          <div className="mt-2 text-white">{spotlightApp.signal}</div>
+                        </div>
+                        <div className="rounded-[1.25rem] border border-white/10 bg-white/5 p-4">
+                          <div className="text-xs uppercase tracking-[0.18em] text-white/35">Cập nhật</div>
+                          <div className="mt-2 text-white">{formatDate(spotlightApp.createdAt)}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-3 pt-2">
+                        <Button size="lg" onClick={() => setSelectedApp(spotlightApp)}>
+                          Xem chi tiết
+                          <CheckCircle2 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="secondary" size="lg" onClick={() => scrollToSection("library")}>
+                          Duyệt kho
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-6 text-sm text-white/55">
+                      Chưa có app trong kho. Vào admin để thêm dữ liệu.
                     </div>
-                  ))}
+                  )}
                 </CardContent>
               </Card>
             </motion.div>
           </div>
         </section>
 
-        <section className="pb-20 sm:pb-24">
+        <section className="sticky top-24 z-40 pb-8 pt-2">
           <motion.div
             initial={{ opacity: 0, y: 14 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -425,7 +643,7 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/50 sm:flex">
-                <Command className="h-4 w-4" />
+                <Search className="h-4 w-4" />
               </div>
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
@@ -433,7 +651,7 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   onKeyDown={(event) => event.key === "Enter" && handleSearch()}
-                  placeholder="Tìm ứng dụng, danh mục hoặc nhà phát triển"
+                  placeholder="Tìm app, tag, version hoặc mô tả"
                   className="pl-12"
                 />
               </div>
@@ -441,115 +659,128 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
                 Tìm kiếm
               </Button>
             </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {categoryOptions.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => handleCategoryChange(category)}
+                  className={`rounded-full border px-4 py-2 text-sm transition-all duration-200 ${
+                    activeCategory === category
+                      ? "border-cyan-200/40 bg-cyan-200/10 text-white shadow-[0_0_28px_rgba(125,211,252,0.12)]"
+                      : "border-white/10 bg-white/[0.035] text-white/50 hover:border-white/20 hover:text-white"
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+              <button onClick={clearFilters} className="rounded-full border border-white/10 bg-white/[0.035] px-4 py-2 text-sm text-white/50 transition-all duration-200 hover:border-white/20 hover:text-white">
+                Xóa bộ lọc
+              </button>
+            </div>
           </motion.div>
         </section>
 
-        <section id="featured" className="pb-24 sm:pb-28">
+        <section id="featured" className="pb-20 sm:pb-24">
           <div className="mb-10 flex items-end justify-between gap-6">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-white/40">Ứng dụng nổi bật</p>
-              <h2 className="mt-4 max-w-2xl text-3xl font-semibold tracking-[-0.045em] text-white sm:text-4xl">Một vòng tròn sản phẩm được chọn lọc, không chỉ là danh sách.</h2>
+              <p className="text-xs uppercase tracking-[0.24em] text-white/40">Nổi bật</p>
+              <h2 className="mt-4 max-w-2xl text-3xl font-semibold tracking-[-0.045em] text-white sm:text-4xl">App được ghim lên đầu kho lưu trữ.</h2>
             </div>
             <div className="hidden items-center gap-2 text-sm text-white/45 md:flex">
               <Grid3X3 className="h-4 w-4" />
-              {filteredApps.length} ứng dụng phù hợp
+              {featuredSectionApps.length} ứng dụng
             </div>
           </div>
 
-          <div className="mb-6 flex flex-wrap gap-2">
-            {categoryOptions.map((category) => (
-              <button
-                key={category}
-                onClick={() => handleCategoryChange(category)}
-                className={`rounded-full border px-4 py-2 text-sm transition-all duration-200 ${
-                  activeCategory === category
-                    ? "border-cyan-200/40 bg-cyan-200/10 text-white shadow-[0_0_28px_rgba(125,211,252,0.12)]"
-                    : "border-white/10 bg-white/[0.035] text-white/50 hover:border-white/20 hover:text-white"
-                }`}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
+          {featuredSectionApps.length > 0 ? (
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+              {featuredSectionApps.map((app) => (
+                <AppCard key={app.id} app={app} onSelect={setSelectedApp} />
+              ))}
+            </div>
+          ) : (
+            <div className="glass rounded-[1.75rem] p-8 text-center text-white/55">Chưa có app nổi bật phù hợp bộ lọc.</div>
+          )}
+        </section>
 
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {filteredApps.map((app, index) => (
-              <motion.div
-                key={app.name}
-                initial={{ opacity: 0, y: 18 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.25 }}
-                transition={{ duration: 0.45, delay: index * 0.04 }}
-                whileHover={{ y: -6 }}
-                className="group"
-              >
-                <Card className="relative h-full overflow-hidden rounded-[1.8rem] border-white/10 bg-white/[0.04] transition-all duration-300 group-hover:border-cyan-200/20 group-hover:bg-white/[0.06]">
-                  <div className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r ${app.accent}`} />
-                  <div className="absolute -right-16 -top-16 h-36 w-36 rounded-full bg-white/[0.035] blur-2xl transition-opacity group-hover:opacity-100" />
-                  <CardHeader className="p-6 pb-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <CardTitle className="text-xl">{app.name}</CardTitle>
-                        <CardDescription className="mt-1">{app.category}</CardDescription>
-                      </div>
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/45 transition-colors group-hover:text-white/75">
-                        <Zap className="h-4 w-4" />
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-6 pt-0">
-                    <div className={`mb-5 h-24 rounded-[1.25rem] border border-white/[0.08] bg-gradient-to-br ${app.accent} relative overflow-hidden`}>
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.20),transparent_28%),linear-gradient(135deg,transparent,rgba(255,255,255,0.06))]" />
-                      <div className="absolute bottom-3 left-3 flex items-center gap-2 text-xs text-white/65">
-                        <span className="h-1.5 w-1.5 rounded-full bg-cyan-200 shadow-[0_0_12px_rgba(125,211,252,0.9)]" />
-                        {app.signal}
-                      </div>
-                    </div>
-                    <p className="text-sm leading-7 text-white/60">{app.description}</p>
-                    <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-4 text-xs text-white/45">
-                      <span>{app.meta}</span>
-                      <Link href={app.url} className="inline-flex items-center gap-1 text-white/70 transition-colors hover:text-white">
-                        Xem ứng dụng
-                        <ArrowUpRight className="h-3.5 w-3.5" />
-                      </Link>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
+        <section id="library" className="pb-20 sm:pb-24">
+          <div className="mb-10 grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-end">
+            <div className="max-w-2xl">
+              <p className="text-xs uppercase tracking-[0.24em] text-white/40">Kho lưu trữ</p>
+              <h2 className="mt-4 text-3xl font-semibold tracking-[-0.045em] text-white sm:text-4xl">Tìm app, mở chi tiết và tải về theo nhu cầu.</h2>
+            </div>
+            <div className="glass rounded-[1.75rem] p-5 text-sm leading-7 text-white/55">
+              Hệ thống này ưu tiên lưu trữ và truy cập nhanh. Mỗi thẻ có version, lượt tải, tag và đường dẫn sang trang chi tiết để tải hoặc kiểm tra thông tin.
+            </div>
           </div>
 
           {filteredApps.length === 0 ? (
-            <div className="glass mt-6 rounded-[1.75rem] p-8 text-center">
+            <div className="glass rounded-[1.75rem] p-8 text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/55">
                 <Search className="h-5 w-5" />
               </div>
-              <h3 className="mt-4 text-lg font-semibold text-white">Chưa tìm thấy ứng dụng phù hợp</h3>
+              <h3 className="mt-4 text-lg font-semibold text-white">Chưa tìm thấy app phù hợp</h3>
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-white/55">
-                Thử nhập từ khóa ngắn hơn hoặc chọn lại danh mục để xem các ứng dụng demo khác.
+                Thử đổi từ khóa hoặc chọn lại danh mục để mở rộng kết quả.
               </p>
-              <Button
-                variant="secondary"
-                className="mt-5"
-                onClick={() => {
-                  setQuery("");
-                  handleCategoryChange("Tất cả");
-                }}
-              >
+              <Button variant="secondary" className="mt-5" onClick={clearFilters}>
                 Xóa bộ lọc
               </Button>
             </div>
-          ) : null}
+          ) : (
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {filteredApps.map((app) => (
+                <AppCard key={app.id} app={app} onSelect={setSelectedApp} />
+              ))}
+            </div>
+          )}
         </section>
 
-        <section id="categories" className="pb-24 sm:pb-28">
+        <section className="pb-20 sm:pb-24">
+          <div className="mb-10 grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+            <div className="max-w-2xl">
+              <p className="text-xs uppercase tracking-[0.24em] text-white/40">Mới cập nhật</p>
+              <h2 className="mt-4 text-3xl font-semibold tracking-[-0.045em] text-white sm:text-4xl">Bản mới gần đây trong kho.</h2>
+            </div>
+            <div className="glass rounded-[1.75rem] p-5 text-sm leading-7 text-white/55">
+              Các app này được sắp theo thời gian thêm gần nhất để bạn thấy nhanh phần mềm nào vừa được cập nhật.
+            </div>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {latestApps.map((app) => (
+              <AppCard key={app.id} app={app} onSelect={setSelectedApp} />
+            ))}
+          </div>
+        </section>
+
+        <section className="pb-20 sm:pb-24">
+          <div className="mb-10 grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+            <div className="max-w-2xl">
+              <p className="text-xs uppercase tracking-[0.24em] text-white/40">Tải nhiều</p>
+              <h2 className="mt-4 text-3xl font-semibold tracking-[-0.045em] text-white sm:text-4xl">App có lượt tải cao nhất.</h2>
+            </div>
+            <div className="glass rounded-[1.75rem] p-5 text-sm leading-7 text-white/55">
+              Danh sách này cho thấy app nào đang được mở nhiều nhất trong kho.
+            </div>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {popularApps.map((app) => (
+              <AppCard key={app.id} app={app} onSelect={setSelectedApp} />
+            ))}
+          </div>
+        </section>
+
+        <section id="categories" className="pb-20 sm:pb-24">
           <div className="mb-10 grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
             <div className="max-w-2xl">
               <p className="text-xs uppercase tracking-[0.24em] text-white/40">Danh mục</p>
-              <h2 className="mt-4 text-3xl font-semibold tracking-[-0.045em] text-white sm:text-4xl">Khám phá theo nhu cầu, đội nhóm hoặc quy trình làm việc.</h2>
+              <h2 className="mt-4 text-3xl font-semibold tracking-[-0.045em] text-white sm:text-4xl">Lọc theo mục đích sử dụng.</h2>
             </div>
             <div className="glass rounded-[1.75rem] p-5 text-sm leading-7 text-white/55">
-              Các danh mục được sắp theo mục đích sử dụng, không theo kiểu phân loại khô cứng. Chuyển từ nhu cầu chung sang ứng dụng phù hợp chỉ trong một cú nhấp.
+              Danh mục được sắp theo nhóm nhu cầu. Chọn một tag để rút gọn kho ngay lập tức.
             </div>
           </div>
 
@@ -563,27 +794,24 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
                 transition={{ duration: 0.45, delay: index * 0.05 }}
               >
                 <Card
-                role="button"
-                tabIndex={0}
-                onClick={() => {
-                  handleCategoryChange(category.name);
-                  scrollToSection("featured");
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    handleCategoryChange(category.name);
-                    scrollToSection("featured");
-                  }
-                }}
-                className={`rounded-[1.5rem] border-white/10 bg-white/[0.04] transition-all duration-300 hover:border-cyan-200/20 hover:bg-white/[0.06] ${
-                  activeCategory === category.name ? "border-cyan-200/30 bg-cyan-200/[0.06]" : ""
-                }`}
-              >
-                <CardContent className="flex items-center justify-between p-5">
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleCategoryChange(category.name)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      handleCategoryChange(category.name);
+                    }
+                  }}
+                  className={`rounded-[1.5rem] border-white/10 bg-white/[0.04] transition-all duration-300 hover:border-cyan-200/20 hover:bg-white/[0.06] ${
+                    activeCategory === category.name ? "border-cyan-200/30 bg-cyan-200/[0.06]" : ""
+                  }`}
+                >
+                  <CardContent className="flex items-center justify-between p-5">
                     <div>
                       <div className="flex items-center gap-3 text-base font-medium text-white">
                         <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/50">
-                          {index % 2 === 0 ? <OrbitIcon className="h-3.5 w-3.5" /> : <Boxes className="h-3.5 w-3.5" />}
+                          {index % 2 === 0 ? <Archive className="h-3.5 w-3.5" /> : <Clock3 className="h-3.5 w-3.5" />}
                         </span>
                         {category.name}
                       </div>
@@ -606,11 +834,14 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
                 <ShieldCheck className="h-4 w-4 text-cyan-200/70" />
                 KhoApp
               </div>
-              <div className="mt-2 text-sm text-white/45">Khám phá ứng dụng tối giản, tinh tế dành cho sản phẩm cao cấp.</div>
+              <div className="mt-2 text-sm text-white/45">Kho ứng dụng để lưu trữ, duyệt nhanh và tải gọn.</div>
             </div>
             <div className="flex flex-wrap items-center gap-4 text-sm text-white/45">
               <a href="#featured" className="transition-colors hover:text-white">
                 Nổi bật
+              </a>
+              <a href="#library" className="transition-colors hover:text-white">
+                Kho lưu trữ
               </a>
               <a href="#categories" className="transition-colors hover:text-white">
                 Danh mục
@@ -624,52 +855,89 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
       </div>
 
       {selectedApp ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-          <button
-            aria-label="Đóng chi tiết ứng dụng"
-            className="absolute inset-0 bg-slate-950/75 backdrop-blur-xl"
-            onClick={() => setSelectedApp(null)}
-          />
+        <div className="fixed inset-0 z-[80] flex items-stretch justify-end bg-slate-950/75 p-3 backdrop-blur-xl sm:p-4">
+          <button aria-label="Đóng chi tiết ứng dụng" className="absolute inset-0" onClick={() => setSelectedApp(null)} />
           <motion.div
-            initial={{ opacity: 0, y: 24, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 24, scale: 0.96 }}
-            className="glass relative w-full max-w-2xl overflow-hidden rounded-[2rem] p-6 shadow-glow sm:p-7"
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 24 }}
+            className="glass relative z-[81] flex w-full max-w-xl flex-col overflow-hidden rounded-[2rem] border-white/10 bg-white/[0.06] shadow-glow"
           >
             <div className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r ${selectedApp.accent}`} />
-            <button
-              aria-label="Đóng"
-              onClick={() => setSelectedApp(null)}
-              className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/50 transition-colors hover:text-white"
-            >
-              <X className="h-4 w-4" />
-            </button>
-            <div className="pr-12">
-              <p className="text-xs uppercase tracking-[0.24em] text-cyan-100/50">Chi tiết ứng dụng</p>
-              <h3 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-white">{selectedApp.name}</h3>
-              <p className="mt-2 text-sm text-white/45">{selectedApp.category} · {selectedApp.meta}</p>
-            </div>
-            <div className={`mt-6 h-36 rounded-[1.5rem] border border-white/10 bg-gradient-to-br ${selectedApp.accent} relative overflow-hidden`}>
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_18%,rgba(255,255,255,0.22),transparent_30%),linear-gradient(135deg,transparent,rgba(255,255,255,0.08))]" />
-              <div className="absolute bottom-4 left-4 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-white/70 backdrop-blur-md">
-                {selectedApp.signal}
+            <div className="flex items-start justify-between gap-4 p-6 pb-4 sm:p-7">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-cyan-100/50">Chi tiết app</p>
+                <h3 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-white">{selectedApp.name}</h3>
+                <p className="mt-2 text-sm text-white/45">{selectedApp.category} · v{selectedApp.version ?? "-"} · {formatDownloads(selectedApp.downloadsCount)} tải</p>
               </div>
+              <button onClick={() => setSelectedApp(null)} className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/60">
+                Đóng
+              </button>
             </div>
-            <p className="mt-6 text-sm leading-7 text-white/65">{selectedApp.description}</p>
-            <p className="mt-3 text-sm leading-7 text-white/55">{selectedApp.detail}</p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              {selectedApp.tags.map((tag) => (
-                <span key={tag} className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/55">
-                  {tag}
-                </span>
-              ))}
-            </div>
-            <div className="mt-7 flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
-              <span className="text-sm text-white/45">Website demo: {selectedApp.url}</span>
-              <Button onClick={() => setSelectedApp(null)}>
-                Đã hiểu
-                <CheckCircle2 className="h-4 w-4" />
-              </Button>
+
+            <div className="px-6 sm:px-7">
+              <div className={`relative overflow-hidden rounded-[1.6rem] border border-white/10 bg-gradient-to-br ${selectedApp.accent}`}>
+                {selectedApp.thumbnailUrl ? (
+                  <img src={selectedApp.thumbnailUrl} alt={selectedApp.name} className="h-56 w-full object-cover" />
+                ) : (
+                  <div className="flex h-56 items-end justify-between p-6">
+                    <div>
+                      <div className="text-xs uppercase tracking-[0.2em] text-white/55">Archive preview</div>
+                      <div className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-white">{selectedApp.name}</div>
+                    </div>
+                    <Archive className="h-8 w-8 text-white/60" />
+                  </div>
+                )}
+                <div className="absolute bottom-4 left-4 flex flex-wrap gap-2 text-[11px] text-white/75">
+                  <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 backdrop-blur-md">{selectedApp.signal}</span>
+                  <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 backdrop-blur-md">{selectedApp.meta}</span>
+                </div>
+              </div>
+
+              <p className="mt-6 text-sm leading-7 text-white/65">{selectedApp.description}</p>
+              <p className="mt-3 text-sm leading-7 text-white/55">{selectedApp.detail}</p>
+
+              <div className="mt-6 flex flex-wrap gap-2">
+                {selectedApp.tags.map((tag) => (
+                  <span key={tag} className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/55">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-[1.25rem] border border-white/10 bg-white/5 p-4">
+                  <div className="text-xs uppercase tracking-[0.18em] text-white/35">Version</div>
+                  <div className="mt-2 text-sm text-white">v{selectedApp.version ?? "-"}</div>
+                </div>
+                <div className="rounded-[1.25rem] border border-white/10 bg-white/5 p-4">
+                  <div className="text-xs uppercase tracking-[0.18em] text-white/35">Lượt tải</div>
+                  <div className="mt-2 text-sm text-white">{formatDownloads(selectedApp.downloadsCount)}</div>
+                </div>
+                <div className="rounded-[1.25rem] border border-white/10 bg-white/5 p-4">
+                  <div className="text-xs uppercase tracking-[0.18em] text-white/35">Cập nhật</div>
+                  <div className="mt-2 text-sm text-white">{formatDate(selectedApp.createdAt)}</div>
+                </div>
+              </div>
+
+              <div className="mt-7 flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm text-white/45">Mở app để tải hoặc xem chi tiết đầy đủ.</div>
+                <div className="flex flex-wrap gap-3">
+                  <a
+                    href={selectedApp.downloadUrl || selectedApp.url}
+                    target={selectedApp.downloadUrl ? "_blank" : undefined}
+                    rel={selectedApp.downloadUrl ? "noopener noreferrer" : undefined}
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-medium text-slate-950 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_16px_50px_rgba(255,255,255,0.12)] transition-colors hover:bg-white/90"
+                  >
+                    <Download className="h-4 w-4" />
+                    Tải về
+                  </a>
+                  <Link href={selectedApp.url} className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 text-sm font-medium text-white transition-colors hover:bg-white/10">
+                    Xem trang app
+                    <ArrowUpRight className="h-4 w-4" />
+                  </Link>
+                </div>
+              </div>
             </div>
           </motion.div>
         </div>

@@ -22,6 +22,7 @@ create table if not exists apps (
   url text,
   tags text[] default '{}',
   featured boolean not null default false,
+  featured_order integer,
   status text not null default 'approved' check (status in ('pending', 'approved', 'rejected')),
   downloads_count integer not null default 0,
   created_at timestamptz not null default now(),
@@ -55,6 +56,7 @@ create policy "Public can record downloads" on downloads for insert with check (
 
 create index if not exists apps_slug_idx on apps(slug);
 create index if not exists apps_featured_idx on apps(featured);
+create index if not exists apps_featured_order_idx on apps(featured_order);
 create index if not exists apps_category_idx on apps(category);
 create index if not exists apps_status_idx on apps(status);
 create index if not exists downloads_app_id_idx on downloads(app_id);

@@ -23,6 +23,7 @@ export async function createApp(input: AppFormInput) {
     download_url: input.download_url || null,
     tags: serializeTags(input.tags),
     featured: input.featured ?? false,
+    featured_order: input.featured_order,
     status: input.status || "approved"
   };
 

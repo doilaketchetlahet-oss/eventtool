@@ -11,6 +11,7 @@ export type AppRecord = {
   download_url?: string | null;
   downloads_count?: number | null;
   featured?: boolean | null;
+  featured_order?: number | null;
   status?: "pending" | "approved" | "rejected" | string | null;
   created_at?: string | null;
   signal?: string | null;
@@ -32,6 +33,7 @@ export type AppFormInput = {
   download_url?: string;
   tags?: string;
   featured?: boolean;
+  featured_order?: number;
   status?: string;
 };
 

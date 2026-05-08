@@ -3,8 +3,10 @@
 
 alter table apps add column if not exists status text not null default 'approved';
 alter table apps add column if not exists updated_at timestamptz not null default now();
+alter table apps add column if not exists featured_order integer;
 
 create index if not exists apps_status_idx on apps(status);
+create index if not exists apps_featured_order_idx on apps(featured_order);
 
 insert into storage.buckets (id, name, public)
 values ('app-assets', 'app-assets', true)
