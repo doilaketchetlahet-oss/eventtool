@@ -12,6 +12,7 @@ html {
 
 body {
   @apply bg-slate-950 text-white antialiased;
+  overflow-x: clip;
   background-image:
     radial-gradient(circle at 48% -18%, rgba(226, 232, 240, 0.18), transparent 24rem),
     radial-gradient(circle at 14% 8%, rgba(124, 58, 237, 0.22), transparent 27rem),

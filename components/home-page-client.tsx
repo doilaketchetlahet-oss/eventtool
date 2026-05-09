@@ -440,16 +440,16 @@ export default function HomePageClient({ apps, categories: supabaseCategories, d
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#020308]">
+    <main className="relative min-h-screen overflow-x-clip overflow-y-hidden bg-[#020308]">
       <div className="pointer-events-none absolute inset-0 grid-glow opacity-25" />
       <div className="pointer-events-none absolute inset-0 noise opacity-[0.035]" />
       <div className="pointer-events-none absolute inset-0 cinematic-vignette" />
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-0 h-px w-[52rem] -translate-x-1/2 aurora-line opacity-80" />
-        <div className="absolute -top-44 left-1/2 h-[34rem] w-[58rem] -translate-x-1/2 rounded-full bg-cyan-300/10 blur-3xl" />
-        <div className="absolute -top-32 left-[-10%] h-[28rem] w-[28rem] rounded-full bg-violet-500/18 blur-3xl animate-float" />
-        <div className="absolute top-36 right-[-12%] h-[34rem] w-[34rem] rounded-full bg-cyan-500/12 blur-3xl animate-float [animation-delay:1.5s]" />
-        <div className="absolute bottom-20 left-1/3 h-80 w-80 rounded-full bg-fuchsia-500/10 blur-3xl animate-float [animation-delay:3s]" />
+        <div className="absolute left-1/2 top-0 hidden h-px w-[52rem] -translate-x-1/2 aurora-line opacity-80 sm:block" />
+        <div className="absolute -top-44 left-1/2 hidden h-[34rem] w-[58rem] -translate-x-1/2 rounded-full bg-cyan-300/10 blur-3xl sm:block" />
+        <div className="absolute -top-32 left-[-10%] hidden h-[28rem] w-[28rem] rounded-full bg-violet-500/18 blur-3xl animate-float sm:block" />
+        <div className="absolute top-36 right-[-12%] hidden h-[34rem] w-[34rem] rounded-full bg-cyan-500/12 blur-3xl animate-float [animation-delay:1.5s] sm:block" />
+        <div className="absolute bottom-20 left-1/3 hidden h-80 w-80 rounded-full bg-fuchsia-500/10 blur-3xl animate-float [animation-delay:3s] sm:block" />
       </div>
 
       <div className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 pb-10 pt-5 sm:px-6 lg:px-8">
