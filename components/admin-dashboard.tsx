@@ -346,6 +346,10 @@ export default function AdminDashboard({ initialApps, initialCategories, initial
       platform: String(formData.get("platform") ?? "").trim(),
       source_url: String(formData.get("source_url") ?? "").trim(),
       checksum: String(formData.get("checksum") ?? "").trim(),
+      notes: String(formData.get("notes") ?? "").trim(),
+      license: String(formData.get("license") ?? "").trim(),
+      virus_scan_status: String(formData.get("virus_scan_status") ?? "").trim(),
+      last_verified_at: String(formData.get("last_verified_at") ?? "").trim(),
       tags: String(formData.get("tags") ?? "").trim(),
       status: String(formData.get("status") ?? "approved").trim(),
       featured: formData.get("featured") === "on"
@@ -628,6 +632,11 @@ export default function AdminDashboard({ initialApps, initialCategories, initial
                   <Input name="platform" placeholder="Platform" defaultValue={editingApp?.platform ?? ""} />
                   <Input name="source_url" placeholder="Source URL" defaultValue={editingApp?.source_url ?? ""} />
                   <Input name="checksum" placeholder="Checksum / SHA256" defaultValue={editingApp?.checksum ?? ""} />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Input name="license" placeholder="License" defaultValue={editingApp?.license ?? ""} />
+                    <Input name="virus_scan_status" placeholder="Scan status" defaultValue={editingApp?.virus_scan_status ?? ""} />
+                  </div>
+                  <Input name="last_verified_at" type="datetime-local" placeholder="Last verified" defaultValue={editingApp?.last_verified_at ? editingApp.last_verified_at.slice(0, 16) : ""} />
                   <label className="block rounded-[1.5rem] border border-dashed border-white/15 bg-white/[0.035] p-4">
                     <span className="mb-3 flex items-center gap-2 text-sm text-white/65">
                       <ImagePlus className="h-4 w-4 text-cyan-200" />
@@ -643,6 +652,7 @@ export default function AdminDashboard({ initialApps, initialCategories, initial
                     </div>
                   </label>
                   <Input name="tags" placeholder="Tags, cách nhau bằng dấu phẩy" defaultValue={parseTags(editingApp?.tags, "").join(", ")} />
+                  <textarea name="notes" rows={3} placeholder="Trust notes / ghi chú kiểm tra file" defaultValue={editingApp?.notes ?? ""} className="min-h-24 w-full rounded-[1.5rem] border border-white/10 bg-white/5 px-5 py-4 text-sm text-white placeholder:text-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40" />
                   <textarea name="long_description" rows={4} placeholder="Long description" defaultValue={editingApp?.long_description ?? editingApp?.detail ?? ""} className="min-h-28 w-full rounded-[1.5rem] border border-white/10 bg-white/5 px-5 py-4 text-sm text-white placeholder:text-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40" />
                   <textarea name="changelog" rows={3} placeholder="Changelog" defaultValue={editingApp?.changelog ?? ""} className="min-h-24 w-full rounded-[1.5rem] border border-white/10 bg-white/5 px-5 py-4 text-sm text-white placeholder:text-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/40" />
                   <select name="status" defaultValue={editingApp?.status ?? "approved"} className="h-12 w-full rounded-[1.5rem] border border-white/10 bg-white/5 px-5 text-sm text-white outline-none">

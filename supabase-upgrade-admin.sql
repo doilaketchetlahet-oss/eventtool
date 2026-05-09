@@ -9,6 +9,10 @@ alter table apps add column if not exists file_type text;
 alter table apps add column if not exists platform text;
 alter table apps add column if not exists source_url text;
 alter table apps add column if not exists checksum text;
+alter table apps add column if not exists notes text;
+alter table apps add column if not exists license text;
+alter table apps add column if not exists virus_scan_status text;
+alter table apps add column if not exists last_verified_at timestamptz;
 
 create index if not exists apps_status_idx on apps(status);
 create index if not exists apps_featured_order_idx on apps(featured_order);

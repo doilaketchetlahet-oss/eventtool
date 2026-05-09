@@ -14,6 +14,10 @@ export type AppRecord = {
   platform?: string | null;
   source_url?: string | null;
   checksum?: string | null;
+  notes?: string | null;
+  license?: string | null;
+  virus_scan_status?: string | null;
+  last_verified_at?: string | null;
   downloads_count?: number | null;
   featured?: boolean | null;
   featured_order?: number | null;
@@ -41,6 +45,10 @@ export type AppFormInput = {
   platform?: string;
   source_url?: string;
   checksum?: string;
+  notes?: string;
+  license?: string;
+  virus_scan_status?: string;
+  last_verified_at?: string;
   tags?: string;
   featured?: boolean;
   featured_order?: number;
