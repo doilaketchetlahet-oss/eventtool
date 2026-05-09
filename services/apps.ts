@@ -6,6 +6,11 @@ function serializeTags(tags?: string) {
   return tags?.split(",").map((tag) => tag.trim()).filter(Boolean) ?? [];
 }
 
+function normalizeText(value?: string) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
 export async function createApp(input: AppFormInput) {
   if (!supabase) {
     throw new Error("Supabase chưa được cấu hình.");
@@ -19,17 +24,17 @@ export async function createApp(input: AppFormInput) {
     category: input.category || "Ứng dụng",
     version: input.version || "1.0.0",
     changelog: input.changelog || "Đang cập nhật changelog.",
-    thumbnail_url: input.thumbnail_url || null,
-    download_url: input.download_url || null,
-    file_size: input.file_size || null,
-    file_type: input.file_type || null,
-    platform: input.platform || null,
-    source_url: input.source_url || null,
-    checksum: input.checksum || null,
-    notes: input.notes || null,
-    license: input.license || null,
-    virus_scan_status: input.virus_scan_status || null,
-    last_verified_at: input.last_verified_at || null,
+    thumbnail_url: normalizeText(input.thumbnail_url),
+    download_url: normalizeText(input.download_url),
+    file_size: normalizeText(input.file_size),
+    file_type: normalizeText(input.file_type),
+    platform: normalizeText(input.platform),
+    source_url: normalizeText(input.source_url),
+    checksum: normalizeText(input.checksum),
+    notes: normalizeText(input.notes),
+    license: normalizeText(input.license),
+    virus_scan_status: normalizeText(input.virus_scan_status),
+    last_verified_at: normalizeText(input.last_verified_at),
     tags: serializeTags(input.tags),
     featured: input.featured ?? false,
     featured_order: input.featured_order,
@@ -63,7 +68,18 @@ export async function updateApp(id: string | number, input: Partial<AppFormInput
   const payload = {
     ...input,
     tags: typeof input.tags === "string" ? serializeTags(input.tags) : undefined,
-    slug: input.slug || (input.title ? createSlug(input.title) : undefined)
+    slug: input.slug || (input.title ? createSlug(input.title) : undefined),
+    thumbnail_url: normalizeText(input.thumbnail_url),
+    download_url: normalizeText(input.download_url),
+    file_size: normalizeText(input.file_size),
+    file_type: normalizeText(input.file_type),
+    platform: normalizeText(input.platform),
+    source_url: normalizeText(input.source_url),
+    checksum: normalizeText(input.checksum),
+    notes: normalizeText(input.notes),
+    license: normalizeText(input.license),
+    virus_scan_status: normalizeText(input.virus_scan_status),
+    last_verified_at: normalizeText(input.last_verified_at)
   };
 
   const { data, error } = await supabase.from("apps").update(payload).eq("id", id).select("*").single();
