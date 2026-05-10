@@ -108,12 +108,7 @@ export default async function AppDetailPage({ params }: AppDetailPageProps) {
   const fileSize = app.file_size ?? "Chưa rõ";
   const fileType = app.file_type ?? "Chưa rõ";
   const platform = app.platform ?? "Đa nền tảng";
-  const sourceUrl = app.source_url ?? null;
-  const checksum = app.checksum ?? null;
-  const notes = app.notes ?? null;
   const license = app.license ?? null;
-  const virusScanStatus = app.virus_scan_status ?? null;
-  const lastVerifiedAt = app.last_verified_at ? formatDate(app.last_verified_at) : "Chưa xác minh";
 
   const relatedApps = (relatedData.apps ?? [])
     .filter((item) => item.id !== app.id)
@@ -249,36 +244,6 @@ export default async function AppDetailPage({ params }: AppDetailPageProps) {
                   <div className="text-xs uppercase tracking-[0.18em] text-white/35">Loại file</div>
                   <div className="mt-2 text-sm text-white/75">{fileType}</div>
                 </div>
-                <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.035] p-4 sm:col-span-2">
-                  <div className="text-xs uppercase tracking-[0.18em] text-white/35">Nền tảng</div>
-                  <div className="mt-2 text-sm text-white/75">{platform}</div>
-                </div>
-                <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.035] p-4 sm:col-span-2">
-                  <div className="text-xs uppercase tracking-[0.18em] text-white/35">Checksum</div>
-                  <div className="mt-2 break-all text-sm text-white/75">{checksum ?? "Chưa có"}</div>
-                </div>
-                <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.035] p-4 sm:col-span-2">
-                  <div className="text-xs uppercase tracking-[0.18em] text-white/35">Nguồn gốc</div>
-                  {sourceUrl ? (
-                    <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex break-all text-sm text-cyan-200 transition-colors hover:text-cyan-100">
-                      {sourceUrl}
-                    </a>
-                  ) : (
-                    <div className="mt-2 text-sm text-white/75">Chưa có nguồn gốc</div>
-                  )}
-                </div>
-                <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.035] p-4">
-                  <div className="text-xs uppercase tracking-[0.18em] text-white/35">License</div>
-                  <div className="mt-2 text-sm text-white/75">{license ?? "Chưa rõ"}</div>
-                </div>
-                <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.035] p-4">
-                  <div className="text-xs uppercase tracking-[0.18em] text-white/35">Scan status</div>
-                  <div className="mt-2 text-sm text-white/75">{virusScanStatus ?? "Chưa quét"}</div>
-                </div>
-                <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.035] p-4 sm:col-span-2">
-                  <div className="text-xs uppercase tracking-[0.18em] text-white/35">Last verified</div>
-                  <div className="mt-2 text-sm text-white/75">{lastVerifiedAt}</div>
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -309,12 +274,6 @@ export default async function AppDetailPage({ params }: AppDetailPageProps) {
               </div>
               <h2 className="mt-4 text-2xl font-semibold tracking-[-0.04em] text-white">Phiên bản {version}</h2>
               <p className="mt-5 whitespace-pre-line text-sm leading-7 text-white/60">{changelog}</p>
-              {notes ? (
-                <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-4 text-sm leading-7 text-white/55">
-                  <div className="text-xs uppercase tracking-[0.18em] text-white/35">Trust notes</div>
-                  <p className="mt-3 whitespace-pre-line">{notes}</p>
-                </div>
-              ) : null}
             </CardContent>
           </Card>
         </section>
