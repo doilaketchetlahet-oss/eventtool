@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ArrowUpRight, Download } from "lucide-react";
-import { incrementDownload } from "@/services/apps";
+import { incrementDownloadAction } from "./actions";
 import type { AppRecord } from "@/types/app";
 
 type DownloadButtonProps = {
@@ -36,7 +36,7 @@ export default function DownloadButton({ app, downloadUrl }: DownloadButtonProps
     setIsLoading(true);
 
     try {
-      const updatedApp = await incrementDownload({ ...app, downloads_count: count });
+      const updatedApp = await incrementDownloadAction({ ...app, downloads_count: count });
       setCount(updatedApp.downloads_count ?? count + 1);
     } catch {
       setCount((current) => current + 1);

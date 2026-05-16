@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { LockKeyhole, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ADMIN_COOKIE } from "@/lib/admin-auth";
+import { ADMIN_COOKIE, createAdminToken } from "@/lib/admin-auth";
 
 async function login(formData: FormData) {
   "use server";
@@ -15,7 +15,7 @@ async function login(formData: FormData) {
   }
 
   const cookieStore = await cookies();
-  cookieStore.set(ADMIN_COOKIE, password, {
+  cookieStore.set(ADMIN_COOKIE, createAdminToken(password), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
